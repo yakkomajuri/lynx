@@ -1,0 +1,100 @@
+/* The app's themes (src/shared/themes.ts). A theme colours what is Lynx's own: the window,
+   Home, the agent panel, settings, menus. Workspaces never get one, which is how the two are told
+   apart. data-sb-theme switches one on, for the page or for any element (the previews in Settings). */
+
+/* The tinted ones: one colour each, and everything else is mixed from it. */
+[data-sb-theme='slate'] {
+  --sb-tint: #4a6da7;
+}
+[data-sb-theme='sage'] {
+  --sb-tint: #3d8566;
+}
+[data-sb-theme='sand'] {
+  --sb-tint: #a8703a;
+}
+[data-sb-theme='iris'] {
+  --sb-tint: #6c5ccf;
+}
+:is([data-sb-theme='slate'], [data-sb-theme='sage'], [data-sb-theme='sand'], [data-sb-theme='iris']) {
+  color-scheme: light dark;
+  --sb-dark: 0;
+  --sb-bg: color-mix(in oklab, var(--sb-tint) 5%, #ffffff);
+  --sb-surface: color-mix(in oklab, var(--sb-tint) 2%, #ffffff);
+  --sb-surface-2: color-mix(in oklab, var(--sb-tint) 9%, #f9f9f9);
+  --sb-rail: color-mix(in oklab, var(--sb-tint) 14%, #f5f5f5);
+  --sb-bubble: color-mix(in oklab, var(--sb-tint) 11%, #f4f4f4);
+  --sb-hover: color-mix(in srgb, var(--sb-tint) 13%, transparent);
+  --sb-line: color-mix(in srgb, var(--sb-tint) 24%, transparent);
+  --sb-line-strong: color-mix(in srgb, var(--sb-tint) 40%, transparent);
+  --sb-text: color-mix(in oklab, var(--sb-tint) 12%, #0d0d0d);
+  --sb-muted: color-mix(in oklab, var(--sb-tint) 22%, #555555);
+  --sb-faint: color-mix(in oklab, var(--sb-tint) 30%, #8a8a8a);
+  --sb-accent: var(--sb-tint);
+  --sb-accent-soft: color-mix(in srgb, var(--sb-tint) 13%, transparent);
+  --sb-ink: color-mix(in oklab, var(--sb-tint) 78%, #0d0d0d);
+  --sb-ink-text: #ffffff;
+  --sb-shadow: 0 0 0 1px var(--sb-line), 0 8px 28px color-mix(in srgb, var(--sb-ink) 16%, transparent);
+  --sb-shadow-soft: 0 0 0 1px var(--sb-line), 0 2px 10px color-mix(in srgb, var(--sb-ink) 6%, transparent);
+}
+@media (prefers-color-scheme: dark) {
+  :is([data-sb-theme='slate'], [data-sb-theme='sage'], [data-sb-theme='sand'], [data-sb-theme='iris']) {
+    --sb-dark: 1;
+    --sb-bg: color-mix(in oklab, var(--sb-tint) 11%, #1f1f1f);
+    --sb-surface: color-mix(in oklab, var(--sb-tint) 13%, #252525);
+    --sb-surface-2: color-mix(in oklab, var(--sb-tint) 16%, #2e2e2e);
+    --sb-rail: color-mix(in oklab, var(--sb-tint) 13%, #131313);
+    --sb-bubble: color-mix(in oklab, var(--sb-tint) 17%, #2f2f2f);
+    --sb-hover: color-mix(in srgb, var(--sb-tint) 26%, transparent);
+    --sb-line: color-mix(in srgb, color-mix(in oklab, var(--sb-tint) 55%, #ffffff) 17%, transparent);
+    --sb-line-strong: color-mix(in srgb, color-mix(in oklab, var(--sb-tint) 55%, #ffffff) 30%, transparent);
+    --sb-text: color-mix(in oklab, var(--sb-tint) 7%, #f0f0f0);
+    --sb-muted: color-mix(in oklab, var(--sb-tint) 18%, #b8b8b8);
+    --sb-faint: color-mix(in oklab, var(--sb-tint) 24%, #8e8e8e);
+    --sb-accent: color-mix(in oklab, var(--sb-tint) 62%, #ffffff);
+    --sb-accent-soft: color-mix(in srgb, var(--sb-tint) 26%, transparent);
+    --sb-ink: color-mix(in oklab, var(--sb-tint) 42%, #ffffff);
+    --sb-ink-text: #0d0d0d;
+    --sb-shadow: 0 0 0 1px var(--sb-line), 0 10px 32px rgba(0, 0, 0, 0.5);
+    --sb-shadow-soft: 0 0 0 1px var(--sb-line);
+  }
+}
+
+/* Ink is dark whatever the system says, and blacker than a workspace in dark mode. */
+[data-sb-theme='ink'] {
+  color-scheme: dark;
+  --sb-dark: 1;
+  --sb-bg: #161617;
+  --sb-surface: #1c1c1e;
+  --sb-surface-2: #262628;
+  --sb-rail: #0a0a0b;
+  --sb-bubble: #262628;
+  --sb-hover: rgba(255, 255, 255, 0.085);
+  --sb-line: rgba(255, 255, 255, 0.1);
+  --sb-line-strong: rgba(255, 255, 255, 0.19);
+  --sb-text: #ededee;
+  --sb-muted: #a8a8ad;
+  --sb-faint: #7c7c82;
+  --sb-accent: #19c37d;
+  --sb-accent-soft: rgba(25, 195, 125, 0.14);
+  --sb-good: #3ccf91;
+  --sb-bad: #f26b60;
+  --sb-warn: #e6b450;
+  --sb-blue: #6ea2ff;
+  --sb-violet: #a78bfa;
+  --sb-ink: #f2f2f2;
+  --sb-ink-text: #0d0d0d;
+  --sb-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09), 0 10px 32px rgba(0, 0, 0, 0.6);
+  --sb-shadow-soft: 0 0 0 1px rgba(255, 255, 255, 0.1);
+  --sb-code-keyword: #d19df0;
+  --sb-code-string: #9bd18b;
+  --sb-code-number: #e6b673;
+  --sb-code-comment: #7f848e;
+  --sb-code-function: #7fb4ff;
+  --sb-code-type: #6cc7d6;
+  --sb-code-tag: #f08d83;
+}
+[data-sb-theme='ink'] .sb-composer-box,
+[data-sb-theme='ink'] .sb-composer-box:focus-within {
+  background: var(--sb-bubble);
+  box-shadow: none;
+}

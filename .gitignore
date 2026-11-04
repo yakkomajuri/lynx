@@ -1,0 +1,17 @@
+node_modules
+out
+.e2e-userdata
+e2e-shots
+.DS_Store
+*.tsbuildinfo
+.local
+build
+dist
+
+# Kept out of the repository for now
+.claude/
+design/
+docs/
+
+CONTRIBUTING.md
+ARCHITECTURE.md

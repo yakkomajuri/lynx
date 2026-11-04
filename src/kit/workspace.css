@@ -1,0 +1,182 @@
+/* How workspaces look: "quiet canvas". A cool grey floor with white blocks on it that have no edges,
+   big light numbers, and Geist. Lynx's own screens keep the app's look (kit.css, themes.css), so a
+   workspace never reads as part of the app. Only workspaces load this file (index.tsx), after kit.css,
+   so the same tokens and classes simply take these values inside a workspace. */
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-display: block;
+  font-weight: 100 900;
+  src: url('./fonts/geist-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-display: block;
+  font-weight: 100 900;
+  src: url('./fonts/geist-latin-ext-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-display: block;
+  font-weight: 100 900;
+  src: url('./fonts/geist-mono-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-display: block;
+  font-weight: 100 900;
+  src: url('./fonts/geist-mono-latin-ext-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  --sb-bg: #f3f4f6;
+  --sb-surface: #ffffff;
+  --sb-surface-2: #f7f8fa;
+  --sb-rail: #eceef1;
+  --sb-bubble: #e9ebef;
+  --sb-hover: rgba(15, 23, 42, 0.05);
+  --sb-line: rgba(15, 23, 42, 0.075);
+  --sb-line-strong: rgba(15, 23, 42, 0.14);
+  --sb-text: #0f1115;
+  --sb-muted: #6b7280;
+  --sb-faint: #9aa0a9;
+  --sb-accent: #16181d;
+  --sb-accent-soft: rgba(15, 23, 42, 0.07);
+  --sb-ink: #0f1115;
+  --sb-ink-text: #ffffff;
+  --sb-radius: 16px;
+  --sb-font: 'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --sb-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --sb-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 12px 32px rgba(15, 23, 42, 0.1);
+  --sb-shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.05), 0 4px 14px rgba(15, 23, 42, 0.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sb-bg: #141517;
+    --sb-surface: #1e2023;
+    --sb-surface-2: #24262a;
+    --sb-rail: #191a1d;
+    --sb-bubble: #26282c;
+    --sb-hover: rgba(255, 255, 255, 0.06);
+    --sb-line: rgba(255, 255, 255, 0.075);
+    --sb-line-strong: rgba(255, 255, 255, 0.15);
+    --sb-text: #f1f2f4;
+    --sb-muted: #9095a0;
+    --sb-faint: #6d717a;
+    --sb-accent: #eceef1;
+    --sb-accent-soft: rgba(255, 255, 255, 0.09);
+    --sb-ink: #f1f2f4;
+    --sb-ink-text: #111215;
+    --sb-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 12px 32px rgba(0, 0, 0, 0.5);
+    --sb-shadow-soft: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
+}
+
+/* Pages: a bigger, quieter title, and room between blocks. */
+.sb-page {
+  padding: 32px 36px 56px;
+  gap: 12px;
+}
+.sb-page-head {
+  margin-bottom: 8px;
+}
+.sb-page-head h1 {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+/* Blocks are white on the floor, with no edge. */
+.sb-card,
+.sb-stat {
+  border-color: transparent;
+}
+.sb-card-head {
+  border-bottom: 0;
+  padding: 16px 18px 2px;
+}
+.sb-card-head h2 {
+  font-size: 13.5px;
+}
+.sb-card-body {
+  padding: 14px 18px 16px;
+}
+.sb-card-body.flush {
+  padding: 4px 0 6px;
+}
+.sb-card-body.flush .sb-table th:first-child,
+.sb-card-body.flush .sb-table td:first-child {
+  padding-left: 18px;
+}
+.sb-card-body.flush .sb-table th:last-child,
+.sb-card-body.flush .sb-table td:last-child {
+  padding-right: 18px;
+}
+.sb-stat {
+  padding: 18px 20px;
+  gap: 4px;
+}
+.sb-stat-label {
+  font-size: 12.5px;
+}
+.sb-stat-value {
+  font-size: 32px;
+  font-weight: 450;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+}
+
+/* Tabs are underlined, not a segmented control. */
+.sb-tabs {
+  background: transparent;
+  padding: 0;
+  gap: 4px;
+  border-radius: 0;
+}
+.sb-tabs button {
+  border-radius: 0;
+  padding: 0 8px;
+  font-size: 13px;
+}
+.sb-tabs button.on {
+  background: transparent;
+  box-shadow: inset 0 -1.5px 0 var(--sb-text);
+}
+
+/* Buttons are white pills with a hairline, so they read on the floor and on a block. */
+.sb-btn {
+  border-color: transparent;
+  box-shadow: 0 0 0 1px var(--sb-line), 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.sb-btn:hover:not(:disabled) {
+  border-color: transparent;
+}
+.sb-btn.primary,
+.sb-btn.ghost {
+  box-shadow: none;
+}
+.sb-input {
+  border-color: var(--sb-line-strong);
+}
+.sb-badge {
+  border-radius: 999px;
+  padding: 0 8px;
+}
+.sb-modal {
+  border: 0;
+  border-radius: 18px;
+}
+.sb-modal > footer {
+  border-top: 0;
+  padding-top: 4px;
+}
+.sb-bar > div {
+  border-radius: 6px 6px 2px 2px;
+}

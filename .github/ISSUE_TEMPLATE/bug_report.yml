@@ -1,0 +1,41 @@
+name: Bug report
+description: Report a reproducible problem in Lynx.
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Lynx version
+      description: Include the app version, or the commit if running from source.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: macOS version and chip; Node version if running from source. Include the agent and connector involved, if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest example that reproduces the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Logs or screenshots
+      description: Remove credentials and private workspace data before sharing.

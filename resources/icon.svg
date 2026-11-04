@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b2b2f"/>
+      <stop offset="1" stop-color="#151517"/>
+    </linearGradient>
+  </defs>
+  <!-- macOS icon grid: an 824px plate centred on a 1024px canvas -->
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#plate)"/>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="184.5" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="3"/>
+  <!-- the lynx: head silhouette with the eyes and nose cut through, drawn on a 100-unit grid -->
+  <path transform="translate(232 232) scale(5.6)" fill="#f3f1ea" fill-rule="evenodd"
+    d="M50 88 L30 76 L16 58 L22 34 L24 16 L40 34 L60 34 L76 16 L78 34 L84 58 L70 76 Z M31 50 Q38 44 45 52 Q37 56 31 50 Z M69 50 Q62 44 55 52 Q63 56 69 50 Z M45 62 L55 62 L50 68 Z"/>
+</svg>

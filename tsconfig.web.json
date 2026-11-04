@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "strict": true,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2023",
+    "lib": ["DOM", "DOM.Iterable", "ES2023"],
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": { "@shared/*": ["src/shared/*"], "@kit/*": ["src/kit/*"] }
+  },
+  "include": ["src/renderer/src", "src/kit", "src/shared"]
+}

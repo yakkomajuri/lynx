@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "strict": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "types": ["node", "electron-vite/node"],
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": { "@shared/*": ["src/shared/*"] }
+  },
+  "include": ["src/main", "src/agentd", "src/daemon", "src/preload", "src/shared", "src/kit/keys.ts", "electron.vite.config.ts"]
+}
