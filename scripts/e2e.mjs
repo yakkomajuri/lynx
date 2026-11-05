@@ -2796,6 +2796,27 @@ export default function App() { return <Hero /> }`
     check('double-click does not edit text', (await fr().locator('#t').getAttribute('contenteditable')) === null && /h1/.test(await win.locator('#sb-point-note .pop .what').textContent()))
     check('the note box is drawn in the app\'s window, not in the workspace\'s frame', (await fr().locator('#sb-annotate textarea').count()) === 0 && (await win.locator('#sb-point-note textarea').count()) === 1)
     check('the note box has no "Edit text" button', (await win.locator('#sb-point-note .pop button').count()) === 1)
+    // The box follows the frame when the frame moves in the window, with nothing moving inside it.
+    const popBox = () => win.locator('#sb-point-note .pop').boundingBox()
+    const frameBox = () => win.locator('.h-frame').boundingBox()
+    const before = await popBox()
+    await win.evaluate(() => (document.querySelector('.h-frame').style.transform = 'translateX(120px)'))
+    await until('box follows the frame', async () => Math.abs((await popBox()).x - before.x - 120) < 2, 3000).catch(() => {})
+    check('the note box follows its frame when the frame moves', Math.abs((await popBox()).x - before.x - 120) < 2, `${before.x} → ${(await popBox()).x}`)
+    await win.evaluate(() => (document.querySelector('.h-frame').style.transform = ''))
+    // Its element scrolled out of sight, the draft stays on screen at the frame's edge, and keeps the keyboard.
+    await fr().evaluate(() => {
+      document.body.style.minHeight = '3000px'
+      scrollTo(0, 600)
+    })
+    await win.waitForTimeout(200)
+    const fb = await frameBox()
+    const pb = await popBox()
+    check('with its element scrolled away, the open note stays inside the frame', pb.y >= fb.y && pb.y + pb.height <= fb.y + fb.height && (await win.evaluate(() => document.activeElement?.id)) === 'sb-point-note', JSON.stringify({ pb, fb }))
+    await fr().evaluate(() => {
+      scrollTo(0, 0)
+      document.body.style.minHeight = ''
+    })
     // A note can @ mention a workspace, as a message can: the list narrows as it is typed and Enter picks.
     const area = win.locator('#sb-point-note textarea')
     await area.pressSequentially('Like @Point t')

@@ -1287,9 +1287,32 @@ function WorkspaceView(p: { frame: { current: FrameHandle | null }; /** The agen
   // The note box, drawn here over the frame by the element the frame says was picked (pointNote.ts). Only
   // the user can type in it or press Send: workspace code can open it, but nothing more.
   const note = useRef<PointNote | null>(null)
+  // Where the box's element is in the frame, as the frame last said. The frame itself can move in the window
+  // (the sidebar, the panes, the agent panel) without the frame noticing: the box follows that too.
+  const noteAt = useRef<unknown>(null)
+  const follow = useRef(0)
   const closeNote = () => {
     note.current?.close()
     note.current = null
+    cancelAnimationFrame(follow.current)
+  }
+  const moveNote = () => {
+    const where = inWindow(noteAt.current)
+    if (where) note.current?.move(where.at, where.within)
+  }
+  const followFrame = () => {
+    let last = ''
+    const tick = () => {
+      if (!note.current) return
+      const f = frame.current?.rect()
+      const key = f ? `${f.left} ${f.top} ${f.right} ${f.bottom}` : ''
+      if (key !== last) {
+        last = key
+        moveNote()
+      }
+      follow.current = requestAnimationFrame(tick)
+    }
+    follow.current = requestAnimationFrame(tick)
   }
   useEffect(() => {
     if (!p.annotating) closeNote()
@@ -1308,6 +1331,7 @@ function WorkspaceView(p: { frame: { current: FrameHandle | null }; /** The agen
     if (!p.annotating || !where || !item || typeof item.id !== 'string') return
     // A new pick in this frame replaces the box quietly: the frame has moved on to it already.
     closeNote()
+    noteAt.current = m.rect
     note.current = openPointNote({
       what: String(m.what ?? item.tag ?? ''),
       ...where,
@@ -1326,6 +1350,7 @@ function WorkspaceView(p: { frame: { current: FrameHandle | null }; /** The agen
         else p.showAgent()
       },
     })
+    followFrame()
   }
   const onFramePost = (type: string, m: Record<string, any>) => {
     if (type === 'title') {
@@ -1337,8 +1362,8 @@ function WorkspaceView(p: { frame: { current: FrameHandle | null }; /** The agen
     else if (type === 'annotate-exit') p.onAnnotate(false)
     else if (type === 'annotate-pick') openNote(m)
     else if (type === 'annotate-at') {
-      const where = inWindow(m.rect)
-      if (where) note.current?.move(where.at, where.within)
+      noteAt.current = m.rect
+      moveNote()
     } else if (type === 'annotate-close') closeNote()
     else p.onPost(type, m)
   }

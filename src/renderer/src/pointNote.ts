@@ -272,11 +272,13 @@ export function openPointNote(o: PointNoteOptions): PointNote {
   draw()
 
   let within = o.within
-  // Under the element when it fits in the frame, else over it; kept inside the frame from side to side.
+  // Under the element when it fits in the frame, else over it; kept inside the frame either way, so a draft
+  // whose element scrolled out of sight stays on screen at the frame's edge.
   const place = (at: Rect) => {
     const h = pop.offsetHeight
-    const left = Math.min(Math.max(within.left + 8, at.left), within.right - 298)
-    const top = at.bottom + 8 + h < within.bottom ? at.bottom + 8 : Math.max(within.top + 8, at.top - h - 8)
+    const left = Math.max(within.left + 8, Math.min(at.left, within.right - 298))
+    const want = at.bottom + 8 + h < within.bottom ? at.bottom + 8 : at.top - h - 8
+    const top = Math.max(within.top + 8, Math.min(want, within.bottom - h - 8))
     pop.style.left = `${Math.round(left)}px`
     pop.style.top = `${Math.round(top)}px`
   }
