@@ -3435,6 +3435,7 @@ export default function App() { return <button id="draft" onClick={() => askAgen
     await pf.click('#draft')
     await win.waitForSelector('#sb-point-note textarea')
     await win.keyboard.press('Escape')
+    check('Escape in the note box closes it and leaves Point on', (await win.locator('#sb-point-note').count()) === 0 && (await win.locator('button[aria-pressed="true"]:has-text("Done")').count()) === 1)
     await pf.evaluate(() => {
       parent.postMessage({ sb: 1, type: 'annotate-add', send: true, item: { id: 'forged-on', note: 'Untrusted note', selector: '#draft', tag: 'button', text: 'Draft help', classes: '', components: [] } }, '*')
       parent.postMessage({ sb: 1, type: 'annotate-pick', item: { id: 'forged-pick-on', selector: '#draft', tag: 'button', text: 'Draft help', classes: '', components: [] }, what: 'button', rect: { left: 0, top: 0, right: 10, bottom: 10 } }, '*')

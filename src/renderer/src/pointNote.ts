@@ -225,6 +225,8 @@ export function openPointNote(o: PointNoteOptions): PointNote {
     o.onAdd(note, send)
   }
   area.addEventListener('keydown', (e) => {
+    // Escape is the box's: the app's own (Point off) sees this box's host, not a text field, and must not hear it.
+    if (e.key === 'Escape') e.stopPropagation()
     // A mention goes as a whole: Backspace at its end (or in it) takes it all, and so does Delete at its start.
     if ((e.key === 'Backspace' || e.key === 'Delete') && area.selectionStart === area.selectionEnd && !e.metaKey && !e.altKey && !e.ctrlKey) {
       const at = area.selectionStart
