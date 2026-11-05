@@ -48,6 +48,10 @@ const sendStored = () => {
   }
 }
 
+/** The box's width, and the least it narrows to in a narrow frame. */
+const WIDTH = 290
+const MIN_W = 220
+
 export interface Rect {
   left: number
   top: number
@@ -273,10 +277,19 @@ export function openPointNote(o: PointNoteOptions): PointNote {
 
   let within = o.within
   // Under the element when it fits in the frame, else over it; kept inside the frame either way, so a draft
-  // whose element scrolled out of sight stays on screen at the frame's edge.
+  // whose element scrolled out of sight stays on screen at the frame's edge. A frame out of sight (the code
+  // inspector or the agent full screen in its place) hides the box until it is back; the draft waits.
+  // In a frame too narrow for the box, it narrows to fit, down to MIN_W, and past that keeps inside the window.
   const place = (at: Rect) => {
+    const fw = within.right - within.left
+    const fh = within.bottom - within.top
+    host.style.display = fw < 1 || fh < 1 ? 'none' : ''
+    if (host.style.display === 'none') return
+    const w = Math.max(MIN_W, Math.min(WIDTH, fw - 16))
+    pop.style.width = `${w}px`
     const h = pop.offsetHeight
-    const left = Math.max(within.left + 8, Math.min(at.left, within.right - 298))
+    const inFrame = Math.max(within.left + 8, Math.min(at.left, within.right - w - 8))
+    const left = Math.max(8, Math.min(inFrame, innerWidth - w - 8))
     const want = at.bottom + 8 + h < within.bottom ? at.bottom + 8 : at.top - h - 8
     const top = Math.max(within.top + 8, Math.min(want, within.bottom - h - 8))
     pop.style.left = `${Math.round(left)}px`

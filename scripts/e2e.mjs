@@ -2817,6 +2817,34 @@ export default function App() { return <Hero /> }`
       scrollTo(0, 0)
       document.body.style.minHeight = ''
     })
+    // With the frame out of sight, the box is too, until the frame is back: the agent full screen, then the code inspector.
+    const noteShown = () => win.locator('#sb-point-note .pop').isVisible()
+    await win.click('.h-agent button[aria-label="Full screen"]')
+    await win.waitForSelector('.h-body.agent-full')
+    await until('box hidden by the full screen agent', async () => !(await noteShown()), 3000).catch(() => {})
+    check('the note box hides while the agent fills the window', !(await noteShown()))
+    await win.click('.h-agent button[aria-label="Back beside the workspace"]')
+    await win.waitForSelector('.h-body.agent-full', { state: 'detached' })
+    await until('box back beside the agent', noteShown, 3000).catch(() => {})
+    check('…and comes back with the workspace', await noteShown())
+    await win.click('.h-top button[aria-label="Workspace menu"]')
+    await win.click('.h-menu button:has-text("Inspect code")')
+    await win.waitForSelector('.h-inspect-page')
+    await until('box hidden by the code inspector', async () => !(await noteShown()), 3000).catch(() => {})
+    check('the note box hides while the code is inspected', !(await noteShown()))
+    await win.click('button[aria-label="Close code inspector"]')
+    await win.waitForSelector('.h-inspect-page', { state: 'detached' })
+    await until('box back from the code', noteShown, 3000).catch(() => {})
+    check('…and comes back with the workspace', await noteShown())
+    // In a frame narrower than the box at the window's right edge, the box narrows and Add stays on screen.
+    await win.evaluate(() => (document.querySelector('.h-frame').style.cssText = `position: fixed; top: 60px; left: ${innerWidth - 200}px; width: 200px; height: 500px`))
+    await win.waitForTimeout(150)
+    const narrow = await win.evaluate(() => {
+      const r = (q) => document.querySelector('#sb-point-note').shadowRoot.querySelector(q).getBoundingClientRect()
+      return { pop: r('.pop').left + '–' + r('.pop').right, go: r('button.go').right, width: innerWidth }
+    })
+    check('in a narrow pane at the right edge, the box and its Add button stay in the window', narrow.go <= narrow.width - 8 && Number(narrow.pop.split('–')[1]) <= narrow.width - 8, JSON.stringify(narrow))
+    await win.evaluate(() => (document.querySelector('.h-frame').style.cssText = ''))
     // A note can @ mention a workspace, as a message can: the list narrows as it is typed and Enter picks.
     const area = win.locator('#sb-point-note textarea')
     await area.pressSequentially('Like @Point t')
