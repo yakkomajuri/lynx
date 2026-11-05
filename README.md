@@ -22,7 +22,7 @@ Lynx solves this by putting interactive interfaces at the center of our interact
 
 ## Demo
 
-`<video coming soon>`
+https://github.com/user-attachments/assets/69dc02bd-20cc-4af6-ae36-477fc8f3b62f
 
 ## To-dos / task tracking example
 
@@ -78,40 +78,6 @@ Better visual editing for GitHub READMEs with native support for media. Took 10m
 ### Games :)
 
 ![screenshot 2026 11 04 at 13 47 08](.github/assets/screenshot-2026-11-04-at-13-47-08.png)
-
-
-
-
-
-
-
-Now, you might be reading this and thinking a few different things:
-
-**Isn't that what artifacts and MCP-UI do?**
-
-Kind of! Artifacts and MCP-UI (the little generated interfaces inside chats with AI) have started to become popular very much so because a lot of us prefer visual and interactive interfaces over walls of text.
-
-The problem is that artifacts, UIs in chat, and even tools we build that run locally only contribute to fragmentation rather than helping it. It's hard to go back and find these when you need them and they all live in different places. 
-
-Lynx sort of flips this model on its head. Rather than having chats be the center of our interaction with agents, visual interfaces are, and they play together very nicely with agents. 
-
-**It feels like a lot of work to build this**
-
-**I already pay for a product that does this for me**
-
-
-- html artifacts
-- mcp-ui
-
-HTML artifacts have taken off as a result
-
-
-You'll love Lynx if :
-
-
-Most of us interact with AI primarily through chatting, which leads to threads with walls of text for you to parse
-
-If you're an active AI user, you likely have multiple chat / agent threads open at all times, and it's both tiring and inefficient to jump between walls of text that require 
 
 
 ## License
