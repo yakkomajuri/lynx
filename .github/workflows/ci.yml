@@ -36,4 +36,8 @@ jobs:
       - name: Agent backend integration tests
         run: npm run test:agents
       - name: Build
+        # The renderer bundle (Monaco and its language workers) needs more than
+        # the ~2 GB heap Node picks by default on the 7 GB runner.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run build
