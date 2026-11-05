@@ -33,6 +33,8 @@ export interface ConnectorInput {
   args?: string[]
   env?: Record<string, string>
   headers?: Record<string, string>
+  /** false: the server takes no authentication at all, so it is never offered a browser sign-in. Unset or true: OAuth when the server asks. */
+  oauth?: boolean
   /** Makes it an API connector: `url` is the API's base URL. */
   api?: ApiInput
   /** An API connector's key, or username and password. An empty value keeps what is stored. */
@@ -183,7 +185,7 @@ export const ConnectorsLive = Layer.effect(Connectors)(
     const authOf = (s: ConnectorSpec): ConnectorState['auth'] => {
       if (s.api) return undefined
       const names = Object.keys(s.headers ?? {})
-      if (!names.length) return store.oauth[s.id]?.tokens ? { kind: 'oauth' } : undefined
+      if (!names.length) return s.oauth === false ? { kind: 'none' } : store.oauth[s.id]?.tokens ? { kind: 'oauth' } : undefined
       const only = names.length === 1 && names[0]!.toLowerCase() === 'authorization' ? s.headers![names[0]!]! : ''
       return { kind: /^bearer /i.test(only) ? 'bearer' : /^basic /i.test(only) ? 'basic' : 'header', headers: names }
     }
@@ -259,8 +261,9 @@ export const ConnectorsLive = Layer.effect(Connectors)(
       }
       if (!s.url) throw new Error('A remote connector needs a URL')
       const headers = s.headers ?? {}
-      // Static credentials win; otherwise OAuth is offered and only used if the server answers 401.
-      const authProvider = Object.keys(headers).length ? undefined : provider(s.id)
+      // Static credentials win; otherwise OAuth is offered and only used if the server answers 401,
+      // unless the connector says the server takes no authentication.
+      const authProvider = Object.keys(headers).length || s.oauth === false ? undefined : provider(s.id)
       // refreshOnce: calls that find the token expired together share one refresh (see oauthRefresh.ts).
       const refresh = guardedFetch(s.id, refreshOnce())
       const fetch = authProvider ? scopeAwareFetch(refresh, s.url, (challenge) => {
@@ -574,7 +577,7 @@ export const ConnectorsLive = Layer.effect(Connectors)(
         for (let n = 2; spec(id); n++) id = `${slug(input.id ?? input.name)}-${n}`
         const s: ConnectorSpec = api
           ? { id, name: input.name || id, transport: 'api', url: input.url!.trim(), api, credentials: keptCredentials(input.credentials), createdAt: new Date().toISOString() }
-          : { id, name: input.name || id, transport: input.url ? 'http' : 'stdio', url: input.url?.trim(), command: input.command, args: input.args, env: input.env, headers: input.headers, createdAt: new Date().toISOString() }
+          : { id, name: input.name || id, transport: input.url ? 'http' : 'stdio', url: input.url?.trim(), command: input.command, args: input.args, env: input.env, headers: input.headers, ...(input.url && input.oauth === false ? { oauth: false as const } : {}), createdAt: new Date().toISOString() }
         store.connectors.push(s)
         await save()
         await connectOnce(id, signIn)
@@ -586,7 +589,7 @@ export const ConnectorsLive = Layer.effect(Connectors)(
       asEffect(async () => {
         const s = spec(id)
         if (!s || s.native) throw new Error(s ? 'Native connectors cannot be edited' : `No connector named ${id}`)
-        const connectionConfig = () => JSON.stringify({ url: s.url, command: s.command, args: s.args, env: s.env, headers: s.headers, api: s.api, credentials: s.credentials })
+        const connectionConfig = () => JSON.stringify({ url: s.url, command: s.command, args: s.args, env: s.env, headers: s.headers, api: s.api, credentials: s.credentials, oauth: s.oauth })
         const before = connectionConfig()
         if (patch.name) s.name = patch.name
         if (patch.url && patch.url.trim() !== s.url) {
@@ -621,6 +624,11 @@ export const ConnectorsLive = Layer.effect(Connectors)(
           const stored = s.headers ?? {}
           const next = Object.fromEntries(Object.entries(patch.headers).flatMap(([k, v]) => (v ? [[k, v]] : stored[k] ? [[k, stored[k]]] : [])))
           s.headers = Object.keys(next).length ? next : undefined
+        }
+        if (patch.oauth !== undefined && s.transport === 'http') {
+          // Saying the server takes no authentication drops a sign-in it would never use again.
+          if (patch.oauth) delete s.oauth
+          else (s.oauth = false), delete store.oauth[id]
         }
         // Separate generations only after a validated, actual configuration change. A rename or
         // unchanged credentials must not bypass an upstream cooldown.

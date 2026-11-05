@@ -39,6 +39,8 @@ function Greeting({ text = GREETING }: { text?: string }) {
   )
 }
 
+/** What a note sent straight from Point says, after the workspaces it is about. */
+export const POINT_SEND = 'Look at the notes I left using Point and go through my asks'
 import { voice, VoiceBar, useVoice } from './Voice'
 import { outgoing, useOutgoing } from './outgoing'
 import { sideWidth, useRoom, WORKSPACE_ROOM } from './room'
@@ -53,6 +55,8 @@ type Drag = 'dock' | 'x' | 'y' | 'xy'
 
 export interface AgentPanelHandle {
   compose: (prompt: string) => void
+  /** Sends the notes left with Point now (a draft while a turn runs). For the host only, when the user set Point to send right away: never for a workspace. */
+  sendPoint: () => void
   newThread: () => void
   /** ⌘W: closes the tab on screen. The only tab, a new conversation, has nothing to close to, so the panel closes. */
   closeTab: () => void
@@ -632,7 +636,7 @@ export const AgentPanel = forwardRef<AgentPanelHandle, { /** Whether the keyboar
     try {
       // Opened on the agent's word after the first-run screen: it keeps that word, and knows what was made and connected.
       const welcomed: { labels: Record<string, string>; rules: string } = welcome ? { labels: welcome.intro ? { intro: welcome.intro.slice(0, 600) } : {}, rules: welcomeRules({ ...welcome, agentDir: state.agentDir, harness: activeHarness }) } : { labels: {}, rules: '' }
-      const r = await agents.start({ prompt, harness: activeHarness, model: model || undefined, effort: effort || undefined, cwd: state.agentDir, permission, attachments: attachedFiles, labels: { kind: 'agent', title: (untitled(text) || sent.find((n) => n.note)?.note || text || lead).replace(/\s+/g, ' ').trim().slice(0, 80), conversation: name, ...(tagged[0] ? { workspace: tagged[0].id } : {}), ...welcomed.labels }, instructions: instructions(state.settings.designSystem) + welcomed.rules })
+      const r = await agents.start({ prompt, harness: activeHarness, model: model || undefined, effort: effort || undefined, cwd: state.agentDir, permission, attachments: attachedFiles, labels: { kind: 'agent', title: ((untitled(text) !== POINT_SEND && untitled(text)) || sent.find((n) => n.note)?.note || text || lead).replace(/\s+/g, ' ').trim().slice(0, 80), conversation: name, ...(tagged[0] ? { workspace: tagged[0].id } : {}), ...welcomed.labels }, instructions: instructions(state.settings.designSystem) + welcomed.rules })
       startedFrom(from, r.session.id, name)
       done()
       return r.run?.id
@@ -902,6 +906,13 @@ export const AgentPanel = forwardRef<AgentPanelHandle, { /** Whether the keyboar
       const text = markRanges(prompt, mentions.map((m) => m.text)).length ? prompt : `${opening}${prompt}`
       // Workspace messages can only prepare a draft. Sending requires a user action in this panel.
       setDraft(text)
+    },
+    sendPoint: () => {
+      setListing(false)
+      composed.current.add(current)
+      const text = `${opening}${POINT_SEND}`
+      if (!busy) void send(text).catch(() => setDraft(text))
+      else setDraft(text)
     },
     newThread: () => void (starting || newThread()),
     closeTab: () => (strip.length === 1 && sessionId === null ? onClose() : closeTab(current)),

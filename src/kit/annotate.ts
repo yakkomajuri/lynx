@@ -57,6 +57,8 @@ const STYLE = `
 .opt.hi { background: var(--sb-hover, rgba(0, 0, 0, 0.06)); }
 .opt .ic { flex: none; width: 16px; height: 16px; }
 .pop .bar { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.pop label { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--sb-muted, #666); cursor: pointer; user-select: none; }
+.pop input[type=checkbox] { margin: 0; accent-color: var(--sb-blue, #2563eb); cursor: pointer; }
 .pop button { height: 28px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--sb-line, #ddd); background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
 .pop button.go { margin-left: auto; background: var(--sb-text, #111); color: var(--sb-bg, #fff); border-color: transparent; }
 .pop button:disabled { opacity: 0.4; cursor: default; }
@@ -103,8 +105,19 @@ const name = (el: Element) => {
   return `${c ? `${c} · ` : ''}${el.tagName.toLowerCase()}${cls}`
 }
 
+/** Whether a note goes straight to the agent instead of onto its list. Remembered for the next note. */
+const SEND = 'sb.annotate.send'
+const sendStored = () => {
+  try {
+    return localStorage.getItem(SEND) === '1'
+  } catch {
+    return false
+  }
+}
+
 export function installAnnotate() {
   const t = getTransport()
+  let sendNow = sendStored()
   let on = false
   let seq = 0
   let hover: Element | null = null
@@ -272,6 +285,7 @@ export function installAnnotate() {
       const put = area.value[end] === ' ' ? `@${m.name}` : `@${m.name} `
       area.setRangeText(put, end - t[2]!.length - 1, end, 'end')
       pick = 0
+      sync()
       draw()
       area.focus()
     }
@@ -279,17 +293,35 @@ export function installAnnotate() {
     bar.className = 'bar'
     const add = document.createElement('button')
     add.className = 'go'
-    add.textContent = 'Add'
-    area.addEventListener('input', draw)
+    // Ticked, the note goes to the agent right away: Add becomes Send. Sending needs a note to say what to do.
+    const toAgent = document.createElement('label')
+    const check = document.createElement('input')
+    check.type = 'checkbox'
+    check.checked = sendNow
+    toAgent.append(check, 'Trigger agent right away')
+    const sync = () => {
+      add.textContent = check.checked ? 'Send' : 'Add'
+      add.disabled = check.checked && !area.value.trim()
+    }
+    check.addEventListener('change', () => {
+      sendNow = check.checked
+      try {
+        localStorage.setItem(SEND, sendNow ? '1' : '0')
+      } catch {}
+      sync()
+      area.focus()
+    })
+    area.addEventListener('input', () => (sync(), draw()))
     for (const ev of ['keyup', 'click', 'focus'] as const) area.addEventListener(ev, draw)
     area.addEventListener('scroll', () => (shown.scrollTop = area.scrollTop))
+    sync()
     draw()
     const submit = () => {
       if (add.disabled) return
       const note = area.value.trim()
       const id = `p${Date.now().toString(36)}${++seq}`
       mark(id, el)
-      t.post('annotate-add', { item: { id, note, ...describe(el) } })
+      t.post('annotate-add', { item: { id, note, ...describe(el) }, send: check.checked })
       closePop()
     }
     area.addEventListener('keydown', (e) => {
@@ -301,6 +333,7 @@ export function installAnnotate() {
         if (hit) {
           e.preventDefault()
           area.setRangeText('', hit.start, hit.end, 'end')
+          sync()
           return draw()
         }
       }
@@ -325,7 +358,7 @@ export function installAnnotate() {
       } else if (e.key === 'Escape') closePop()
     })
     add.addEventListener('click', submit)
-    bar.append(add)
+    bar.append(toAgent, add)
     pop.append(what, field, bar)
     root.append(pop)
     const r = el.getBoundingClientRect()

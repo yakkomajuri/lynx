@@ -411,7 +411,7 @@ export function ConnectorDialog({ preset, state, onClose, toast }: { preset: Con
   const [mode, setMode] = useState<'remote' | 'local'>('remote')
   const [name, setName] = useState(preset.name ?? '')
   const [url, setUrl] = useState(preset.url ?? '')
-  const [auth, setAuth] = useState<Auth>(() => authFrom(editing?.auth))
+  const [auth, setAuth] = useState<Auth>(() => authFrom(editing?.auth, editing?.status === 'needs-credentials'))
   const [command, setCommand] = useState('')
   const [env, setEnv] = useState('')
   const [busy, setBusy] = useState(false)
@@ -420,11 +420,14 @@ export function ConnectorDialog({ preset, state, onClose, toast }: { preset: Con
   // After adding, keep watching the connector: sign-in finishes in the browser.
   const live = added ? state.connectors.find((c) => c.id === added) : undefined
   // A server that turned out to want a token: most hand out a bearer token.
+  const asking = (editing ?? live)?.status === 'needs-credentials'
   useEffect(() => {
-    if (live?.status === 'needs-credentials') setAuth((a) => (a.kind === 'none' ? { ...a, kind: 'bearer' } : a))
-  }, [live?.status])
+    if (asking) setAuth((a) => (a.kind === 'oauth' || a.kind === 'none' ? { ...a, kind: 'bearer' } : a))
+  }, [asking])
 
   const headers = () => headersOf(auth)
+  // Whether the server may be offered a browser sign-in: every kind but None (static headers win over it anyway).
+  const oauth = () => auth.kind !== 'none'
   const guessName = (u: string) => {
     try {
       const host = new URL(u).hostname.replace(/^(mcp|api|www)\./, '')
@@ -438,7 +441,7 @@ export function ConnectorDialog({ preset, state, onClose, toast }: { preset: Con
     setError(undefined)
     try {
       if (editing) {
-        const c = await app('connector_update', { connector: editing.id, headers: headers(), sign_in: true })
+        const c = await app('connector_update', { connector: editing.id, headers: headers(), oauth: oauth(), sign_in: true })
         if (c.status === 'connected') {
           toast(`${c.id} connected`, 'good')
           onClose()
@@ -447,7 +450,7 @@ export function ConnectorDialog({ preset, state, onClose, toast }: { preset: Con
       }
       const args =
         mode === 'remote'
-          ? { name: name.trim() || guessName(url), url: url.trim(), headers: headers() }
+          ? { name: name.trim() || guessName(url), url: url.trim(), headers: headers(), oauth: oauth() }
           : (() => {
               const [cmd, ...rest] = splitCommand(command)
               return { name: name.trim() || cmd, command: cmd, args: rest, env: Object.fromEntries(env.split('\n').map((l) => l.trim()).filter((l) => l.includes('=')).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)])) }
@@ -464,6 +467,8 @@ export function ConnectorDialog({ preset, state, onClose, toast }: { preset: Con
     }
   }
 
+  // Opened for a connector just added elsewhere (a template's Connect): it shows once the state has it.
+  if (preset.connector && !editing) return null
   if (live && live.status === 'connected') {
     return (
       <Shell title={`${live.id} is connected`} onClose={onClose} footer={<button className="sb-btn primary" onClick={onClose}>Done</button>}>
@@ -494,7 +499,7 @@ export function ConnectorDialog({ preset, state, onClose, toast }: { preset: Con
         footer={
           <>
             <button className="sb-btn" onClick={onClose}>Cancel</button>
-            <button className="sb-btn primary" disabled={busy || !authReady(auth)} onClick={() => void (live && !editing ? app('connector_update', { connector: live.id, headers: headers(), sign_in: true }).then((c) => (c.status === 'connected' ? (toast(`${c.id} connected`, 'good'), onClose()) : setError(c.error ?? c.status)), (e) => setError(String(e.message ?? e))) : submit())}>
+            <button className="sb-btn primary" disabled={busy || !authReady(auth)} onClick={() => void (live && !editing ? app('connector_update', { connector: live.id, headers: headers(), oauth: oauth(), sign_in: true }).then((c) => (c.status === 'connected' ? (toast(`${c.id} connected`, 'good'), onClose()) : setError(c.error ?? c.status)), (e) => setError(String(e.message ?? e))) : submit())}>
               {busy ? 'Connecting…' : 'Save and connect'}
             </button>
           </>
@@ -502,7 +507,7 @@ export function ConnectorDialog({ preset, state, onClose, toast }: { preset: Con
       >
         {preset.reason && <p className="h-muted">{preset.reason}</p>}
         <p className="h-muted">{target.url}</p>
-        <AuthFields auth={auth} setAuth={setAuth} oauth={target.auth?.kind === 'oauth'} />
+        <AuthFields auth={auth} setAuth={setAuth} signedIn={target.auth?.kind === 'oauth'} />
         <p className="h-hint">Stored on this machine only. Agents use the connector through the app and never see the token.</p>
         {error && <div className="sb-error">{error}</div>}
       </Shell>
@@ -573,7 +578,7 @@ export function ConnectorDialog({ preset, state, onClose, toast }: { preset: Con
 
 // How a remote connector proves who you are. Each kind asks only for what it needs, and the
 // header it turns into is built here: a bearer token is pasted bare, never typed as "Bearer …".
-type AuthKind = 'none' | 'bearer' | 'header' | 'basic'
+type AuthKind = 'oauth' | 'bearer' | 'header' | 'basic' | 'none'
 type HeaderRow = { name: string; value: string; stored?: boolean }
 interface Auth {
   kind: AuthKind
@@ -585,23 +590,26 @@ interface Auth {
   stored?: ConnectorState['auth']
 }
 const AUTH_KINDS: { kind: AuthKind; name: string; hint: string }[] = [
-  { kind: 'none', name: 'None', hint: 'Sign in through the browser if the server asks' },
+  { kind: 'oauth', name: 'OAuth', hint: 'Sign in through the browser when the server asks' },
   { kind: 'bearer', name: 'Bearer token', hint: 'Paste a token or API key' },
   { kind: 'header', name: 'Custom header', hint: 'A key in a header of its own, like X-API-Key' },
   { kind: 'basic', name: 'Username and password', hint: 'HTTP basic auth' },
+  { kind: 'none', name: 'None', hint: 'The server takes no authentication' },
 ]
-const authFrom = (stored?: ConnectorState['auth']): Auth => ({
-  kind: !stored || stored.kind === 'oauth' ? 'none' : stored.kind,
+/** The form for what is stored. A server that asked for a token and has none starts on a bearer token. */
+const authFrom = (stored?: ConnectorState['auth'], wantsToken = false): Auth => ({
+  kind: stored && stored.kind !== 'oauth' ? stored.kind : wantsToken ? 'bearer' : 'oauth',
   token: '',
   user: '',
   pass: '',
   rows: stored?.kind === 'header' ? stored.headers.map((name) => ({ name, value: '', stored: true })) : [{ name: '', value: '' }],
   stored,
 })
-const keeps = (a: Auth) => a.stored?.kind === a.kind
+const keeps = (a: Auth) => a.stored?.kind === a.kind && 'headers' in a.stored
 const named = (a: Auth) => a.rows.filter((r) => r.name.trim())
 /** Whether the fields are enough to save: filled in, or left empty over something stored. */
 const authReady = (a: Auth) =>
+  a.kind === 'oauth' ||
   a.kind === 'none' ||
   (a.kind === 'bearer' && (!!a.token.trim() || keeps(a))) ||
   (a.kind === 'basic' && ((!!a.user.trim() && !!a.pass) || (keeps(a) && !a.user.trim() && !a.pass))) ||
@@ -614,7 +622,7 @@ const headersOf = (a: Auth): Record<string, string> => {
   return {}
 }
 
-function AuthFields({ auth, setAuth, oauth }: { auth: Auth; setAuth: (a: Auth) => void; /** Signed in through the browser now. */ oauth?: boolean }) {
+function AuthFields({ auth, setAuth, signedIn }: { auth: Auth; setAuth: (a: Auth) => void; /** Signed in through the browser now. */ signedIn?: boolean }) {
   const set = (patch: Partial<Auth>) => setAuth({ ...auth, ...patch })
   const kept = keeps(auth)
   const setRow = (i: number, patch: Partial<HeaderRow>) => set({ rows: auth.rows.map((r, j) => (j === i ? { ...r, ...patch, ...(patch.name !== undefined ? { stored: false } : {}) } : r)) })
@@ -622,7 +630,7 @@ function AuthFields({ auth, setAuth, oauth }: { auth: Auth; setAuth: (a: Auth) =
     <div className="h-auth">
       <div className="sb-field">
         <span>Authentication</span>
-        <AuthPicker value={auth.kind} onChange={(kind) => set({ kind })} oauth={oauth} options={AUTH_KINDS} />
+        <AuthPicker value={auth.kind} onChange={(kind) => set({ kind })} options={signedIn ? AUTH_KINDS.map((k) => (k.kind === 'oauth' ? { ...k, hint: 'Signed in through the browser' } : k)) : AUTH_KINDS} />
       </div>
       {auth.kind === 'bearer' && (
         <label className="sb-field">
@@ -665,11 +673,11 @@ function AuthFields({ auth, setAuth, oauth }: { auth: Auth; setAuth: (a: Auth) =
 }
 
 /** The kinds of authentication, each with a line on when to pick it. */
-function AuthPicker<K extends string>({ value, onChange, oauth, options }: { value: K; onChange: (k: K) => void; oauth?: boolean; options: { kind: K; name: string; hint: string }[] }) {
+function AuthPicker<K extends string>({ value, onChange, options }: { value: K; onChange: (k: K) => void; options: { kind: K; name: string; hint: string }[] }) {
   const [at, setAt] = useState<React.CSSProperties | null>(null)
   const button = useRef<HTMLButtonElement>(null)
   const list = useRef<HTMLDivElement>(null)
-  const kinds = options.map((k) => (k.kind === 'none' && oauth ? { ...k, name: 'Browser sign-in', hint: 'Signed in through the browser' } : k))
+  const kinds = options
   const current = kinds.find((k) => k.kind === value)!
   const open = () => {
     const r = button.current!.getBoundingClientRect()

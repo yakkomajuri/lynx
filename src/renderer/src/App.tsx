@@ -133,6 +133,23 @@ export function App() {
   const panel = useRef<AgentPanelHandle>(null)
   const finder = useRef<FindHandle>(null)
   const [annotating, setAnnotating] = useState(false)
+  // Point's "Trigger agent right away" is ticked in the note box, inside the workspace's frame, so workspace code
+  // could post the same thing. A note sends itself only when Point was turned on by the user (not by a workspace,
+  // through the kit or a forwarded shortcut) and the window has just had a real press or key. Anything else only
+  // joins the list, for the user to send.
+  const pointMine = useRef(false)
+  // What handlePost is running for, while it runs: a workspace's command, or keys a frame says were pressed in it.
+  const posting = useRef<null | 'kit' | 'keys'>(null)
+  const togglePoint = () => {
+    pointMine.current = posting.current === null || (posting.current === 'keys' && navigator.userActivation.isActive)
+    setAnnotating((a) => !a)
+  }
+  const pointSendsNow = () => annotating && pointMine.current && navigator.userActivation.isActive
+  const sendPoint = () => {
+    showAgent(true)
+    // The panel mounts on the next frame when it was closed, and the note just added is in its list by then.
+    setTimeout(() => panel.current?.sendPoint(), 30)
+  }
   // The command bar, and whether it opened on the workspaces that can go beside this one.
   const [bar, setBar] = useState<false | 'all' | 'beside'>(false)
   // When the Mac's caffeinate run ends (ms), or null when none is going: looked at again each time the bar opens.
@@ -335,11 +352,25 @@ export function App() {
     else if (type === 'open-external') void bridge.openExternal(String(p.url))
     else if (type === 'toast') toast(String(p.text), p.tone)
     else if (type === 'connector-dialog') setDialog(p.preset ?? {})
-    else if (type === 'shortcut') shortcut(pressed(p))
+    else if (type === 'shortcut') {
+      posting.current = 'keys'
+      try {
+        shortcut(pressed(p))
+      } finally {
+        posting.current = null
+      }
+    }
     // A command by its id, from the kit (togglePoint, showTemplates, …): the same whatever keys it has.
     // Only those the kit offers: workspace code must not publish, fork, archive or delete on its own.
     else if (type === 'command' && p.id === 'command-bar') setBar('all')
-    else if (type === 'command' && KIT_COMMANDS.has(String(p.id))) commands.current.find((c) => c.id === p.id)?.run()
+    else if (type === 'command' && KIT_COMMANDS.has(String(p.id))) {
+      posting.current = 'kit'
+      try {
+        commands.current.find((c) => c.id === p.id)?.run()
+      } finally {
+        posting.current = null
+      }
+    }
   }
   // Back leaves the code for the workspace before it goes back a page in the workspace.
   const back = (id: string) => (inspecting[id] ? inspect(id, false) : frameOf(id).current?.send('back'))
@@ -711,7 +742,7 @@ export function App() {
             : []),
     ...(ws
       ? ([
-          { id: 'point', group: 'Agent', title: annotating ? 'Stop pointing' : 'Point at things for the agent', icon: <Icon name="pointer" size={18} />, combo: comboFor('point'), run: () => setAnnotating((a) => !a) },
+          { id: 'point', group: 'Agent', title: annotating ? 'Stop pointing' : 'Point at things for the agent', icon: <Icon name="pointer" size={18} />, combo: comboFor('point'), run: togglePoint },
           ...((split || agentOpen) && !filling
             ? ([
                 { id: 'focus-prev', group: 'This workspace', title: agentOpen ? 'Focus the previous pane or the agent' : 'Focus the previous pane', combo: comboFor('focus-prev'), run: () => cycle(-1) },
@@ -815,7 +846,7 @@ export function App() {
   const agentTools = (point: boolean) => (
     <>
       <UpdateButton update={state.update} busy={state.service.busy ?? 0} onError={(e) => toast(e instanceof Error ? e.message : String(e), 'bad')} />
-      <button className={`sb-btn sm${point && annotating ? ' primary' : ' outline'}`} disabled={!point} onClick={() => setAnnotating(!annotating)} title={point ? titled('Point at things for the agent', comboFor('point')) : 'Point works in a workspace'} aria-pressed={point && annotating}>
+      <button className={`sb-btn sm${point && annotating ? ' primary' : ' outline'}`} disabled={!point} onClick={togglePoint} title={point ? titled('Point at things for the agent', comboFor('point')) : 'Point works in a workspace'} aria-pressed={point && annotating}>
         <Icon name="pointer" size={15} />
         {point && annotating ? 'Done' : 'Point'}
         <Keys combo={comboFor('point')} />
@@ -861,6 +892,8 @@ export function App() {
     onRenaming: (on: boolean) => setRenaming(on ? w.id : null),
     onRename: (name: string) => rename(w, name),
     onAnnotate: setAnnotating,
+    pointSendsNow,
+    sendPoint,
     notes: notes[w.id] ?? [],
     noteIds: screenNotes.map((n) => n.id),
     setNotes: (f: (n: Note[]) => Note[]) => setNotesFor(w.id, f),
@@ -1231,7 +1264,7 @@ interface PaneProps {
 // Monaco is big: the code inspector loads the first time someone opens it.
 const CodeInspector = lazy(() => import('./CodeInspector'))
 
-function WorkspaceView(p: { frame: { current: FrameHandle | null }; /** The agent panel, shown beside the workspace and under the title bar. Not in a pane: the window has one panel. */ side?: React.ReactNode; /** The agent fills the window; the workspace waits behind it. */ agentFull?: boolean; /** Set when the workspace is one of two in the window. */ pane?: PaneProps; /** In a pane, with more than one thing on screen: whether the keyboard is here (lit) or elsewhere (dim). */ tone?: Tone; /** Drawn over the workspace: where a workspace dragged out of the list can go. */ overlay?: React.ReactNode; ws: WorkspaceInfo; state: AppState; /** The buttons at the end of the title bar: Point, Agent and the ones every page has. */ tools?: React.ReactNode; /** The list of workspaces is open. */ switching: boolean; onSwitch: (from: HTMLElement) => void; /** Whether the title has the carets that open the list of workspaces: not when it is in a sidebar. A pane's always has them, to pick for that pane. */ switcher?: boolean; renaming: boolean; onRenaming: (on: boolean) => void; onRename: (name: string) => void; annotating: boolean; onAnnotate: (on: boolean) => void; notes: Note[]; /** Every note on screen, in the agent's order, which the markers are numbered by. */ noteIds: string[]; setNotes: (f: (n: Note[]) => Note[]) => void; showAgent: () => void; onPost: (type: string, payload: Record<string, any>) => void; askAgent: (prompt: string) => void; toast: (t: string, tone?: Toast['tone']) => void; onOpen: (id: string) => void; onGone: () => void; /** Publish to the marketplace: its dialog opens. */ onPublish: () => void; /** A shortcut of the app pressed where the app does not see it, as in the code inspector. */ onShortcut: (combo: Combo) => void; /** Whether a new version may wait while the user is busy in the workspace: not while the keyboard is in the agent panel. */ mayHold: boolean; /** Its code is on screen in its place: <Workspace> › Inspect code. */ inspecting: boolean; onInspect: (on: boolean) => void; /** The code's editor, while it is open, for Find. */ inspector: { current: InspectorHandle | null } }) {
+function WorkspaceView(p: { frame: { current: FrameHandle | null }; /** The agent panel, shown beside the workspace and under the title bar. Not in a pane: the window has one panel. */ side?: React.ReactNode; /** The agent fills the window; the workspace waits behind it. */ agentFull?: boolean; /** Set when the workspace is one of two in the window. */ pane?: PaneProps; /** In a pane, with more than one thing on screen: whether the keyboard is here (lit) or elsewhere (dim). */ tone?: Tone; /** Drawn over the workspace: where a workspace dragged out of the list can go. */ overlay?: React.ReactNode; ws: WorkspaceInfo; state: AppState; /** The buttons at the end of the title bar: Point, Agent and the ones every page has. */ tools?: React.ReactNode; /** The list of workspaces is open. */ switching: boolean; onSwitch: (from: HTMLElement) => void; /** Whether the title has the carets that open the list of workspaces: not when it is in a sidebar. A pane's always has them, to pick for that pane. */ switcher?: boolean; renaming: boolean; onRenaming: (on: boolean) => void; onRename: (name: string) => void; annotating: boolean; onAnnotate: (on: boolean) => void; /** Whether a note ticked to go right away may send itself; see pointMine in App. */ pointSendsNow: () => boolean; sendPoint: () => void; notes: Note[]; /** Every note on screen, in the agent's order, which the markers are numbered by. */ noteIds: string[]; setNotes: (f: (n: Note[]) => Note[]) => void; showAgent: () => void; onPost: (type: string, payload: Record<string, any>) => void; askAgent: (prompt: string) => void; toast: (t: string, tone?: Toast['tone']) => void; onOpen: (id: string) => void; onGone: () => void; /** Publish to the marketplace: its dialog opens. */ onPublish: () => void; /** A shortcut of the app pressed where the app does not see it, as in the code inspector. */ onShortcut: (combo: Combo) => void; /** Whether a new version may wait while the user is busy in the workspace: not while the keyboard is in the agent panel. */ mayHold: boolean; /** Its code is on screen in its place: <Workspace> › Inspect code. */ inspecting: boolean; onInspect: (on: boolean) => void; /** The code's editor, while it is open, for Find. */ inspector: { current: InspectorHandle | null } }) {
   const { ws, state } = p
   const [menu, setMenu] = useState(false)
   const [picking, setPicking] = useState(false)
@@ -1287,7 +1320,10 @@ function WorkspaceView(p: { frame: { current: FrameHandle | null }; /** The agen
     else if (type === 'annotate-exit') p.onAnnotate(false)
     else if (type === 'annotate-add') {
       p.setNotes((n) => [...n, { ...m.item, page: path, workspace: ws.id }])
-      p.showAgent()
+      // Ticked "Trigger agent right away": the note (with any others on the list) goes now, with a message that points
+      // the agent at them. Workspace code can post the same flag, so the host also checks the user is the one pointing.
+      if (m.send && String(m.item?.note ?? '').trim() && p.pointSendsNow()) p.sendPoint()
+      else p.showAgent()
     } else p.onPost(type, m)
   }
 

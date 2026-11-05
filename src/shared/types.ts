@@ -54,6 +54,8 @@ export interface ConnectorSpec {
   args?: string[]
   env?: Record<string, string>
   headers?: Record<string, string>
+  /** false: the server takes no authentication, so a 401 asks for a token instead of offering a browser sign-in. */
+  oauth?: false
   api?: ApiConfig
   credentials?: ApiCredentials
   createdAt: string
@@ -71,8 +73,8 @@ export interface ConnectorState {
   command?: string
   args?: string[]
   hasCredentials: boolean
-  /** How it signs in: OAuth, or the kind of static headers stored (their names, never their values). */
-  auth?: { kind: 'oauth' } | { kind: 'bearer' | 'basic' | 'header'; headers: string[] }
+  /** How it signs in: OAuth (unset until signed in), none at all, or the kind of static headers stored (their names, never their values). */
+  auth?: { kind: 'oauth' | 'none' } | { kind: 'bearer' | 'basic' | 'header'; headers: string[] }
   /** An API connector's settings (no secrets). */
   api?: ApiConfig
   createdAt: string
