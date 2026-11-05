@@ -2,7 +2,9 @@
 // (official or community) and your private shelf; the page filters them by words, who made them, connector and tag. A template opens as a page of
 // its own, running on its demo data beside the steps to install it, and a security review for templates
 // the Lynx team did not make. Installing
-// (forking) copies the code into a workspace you own and binds it to your connectors.
+// (forking) copies the code into a workspace you own and binds it to your connectors. A connector you
+// don't have yet is added from here in one click: the server is tried with OAuth, and only one that
+// wants a token opens a dialog to paste it.
 import { lazy, Suspense, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { BadgeCheck, Check, ChevronDown, ChevronRight, Clock, Eye, Search, ShieldCheck, Users, Wrench, X } from 'lucide-react'
 import { sameCombo, type Combo } from '@kit/keys'
@@ -435,6 +437,24 @@ export function TemplateView({ item, state, onOpen, onAddConnector, onReview, on
   const chosen = (r: MarketplaceRequirement) => picked[r.alias] ?? (r.url ? matches(state, r.url)[0]?.id : undefined)
   const missing = item.requires.filter((r) => !r.optional && !chosen(r))
   const has = (tool: string) => state.tools.some((t) => t.name === tool)
+  // The requirement being connected right now, by alias.
+  const [connecting, setConnecting] = useState<string>()
+  // A known server is added as it is and signed in through the browser; one that turns out to want a
+  // token gets the dialog that asks for it. Without a URL there is nothing to try: the full form opens.
+  const connect = async (r: MarketplaceRequirement) => {
+    if (!r.url) return onAddConnector({ name: r.name.toLowerCase(), reason: r.hint })
+    setConnecting(r.alias)
+    setError(undefined)
+    try {
+      const c = await app('connector_add', { name: r.name.toLowerCase(), url: r.url, sign_in: true })
+      if (c.status === 'needs-credentials') onAddConnector({ connector: c.id, reason: r.hint })
+      else if (c.status === 'error') setError(`${r.name}: ${c.error ?? 'could not connect'}`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setConnecting(undefined)
+    }
+  }
   const fork = async () => {
     if (needsReview) return setReviewing(true)
     setBusy(true)
@@ -495,6 +515,7 @@ export function TemplateView({ item, state, onOpen, onAddConnector, onReview, on
                 {!item.requires.length && <small>Nothing to connect: it only uses what comes with Lynx.</small>}
                 {item.requires.map((r) => {
                   const options = optionsFor(state, r)
+                  const waiting = options.find((c) => c.id === chosen(r))?.status === 'auth-required'
                   return (
                     <div key={r.alias} className="h-setup-conn">
                       <span className="h-setup-conn-name">
@@ -505,14 +526,14 @@ export function TemplateView({ item, state, onOpen, onAddConnector, onReview, on
                         <ConnectorSelect options={options} value={chosen(r)} optional={!!r.optional} label={`${r.name} connector`} onChange={(id) => setPicked({ ...picked, [r.alias]: id })} />
                       ) : (
                         <div className="h-need">
-                          <button className="sb-btn sm h-connect" onClick={() => onAddConnector({ name: r.name.toLowerCase(), url: r.url, reason: r.hint })}>
+                          <button className="sb-btn sm h-connect" disabled={connecting === r.alias} onClick={() => void connect(r)}>
                             <Logo url={r.url} size={16} />
-                            Connect {r.name}
+                            {connecting === r.alias ? `Connecting ${r.name}…` : `Connect ${r.name}`}
                           </button>
                         </div>
                       )}
                       {/* Under a Connect button the button says it all; a hint only explains a choice. */}
-                      {options.length > 0 && <small>{!r.url ? (r.hint ?? 'Optional: pick one of your connectors, or none.') : options.length > 1 ? 'Several of your connectors point at this server. Pick the account this workspace should use.' : (r.hint ?? `This UI was written against ${r.url}.`)}</small>}
+                      {options.length > 0 && <small>{waiting ? `Your browser opened ${r.name}'s sign-in page. This updates by itself when you are done.` : !r.url ? (r.hint ?? 'Optional: pick one of your connectors, or none.') : options.length > 1 ? 'Several of your connectors point at this server. Pick the account this workspace should use.' : (r.hint ?? `This UI was written against ${r.url}.`)}</small>}
                     </div>
                   )
                 })}

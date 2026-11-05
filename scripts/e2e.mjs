@@ -1,6 +1,6 @@
 // Drive the built app with Playwright. Screenshots land in e2e-shots/.
 //   E2E_FRESH=1   wipe the test data directory first
-//   E2E_STEPS=a,b run only some steps (background: quitting leaves agents running; execution: live local queue limits; boot, updates, connectors, apis, apichat (a real agent), market, remote and publishagent (the public marketplace at LYNX_MARKETPLACE_URL; publishagent with a real agent), store, tools, schedule, manifest, desk, rail, theme, layout (the sidebar and the floating agent), icons, keys, find, drafts, deepwiki, live, hold (an update waits while the user types), routing, chat, taskdraft (draft edits while agent requests wait), resume, agent, queue, approvals (the fake agent), running (the agents running, from the title bar), login (/login and Sign in open the agent's sign-in in a terminal), point, pointsend, attach, terminal, split, scroll (small wheel movements and transcript following), voice (downloads the light speech model once), review, toolviews, caffeinate, recover (a page that crashed is loaded again))
+//   E2E_STEPS=a,b run only some steps (background: quitting leaves agents running; execution: live local queue limits; boot, updates, connectors, apis, mcpauth, apichat (a real agent), market, remote and publishagent (the public marketplace at LYNX_MARKETPLACE_URL; publishagent with a real agent), store, tools, schedule, manifest, desk, rail, theme, layout (the sidebar and the floating agent), icons, keys, find, drafts, deepwiki, live, hold (an update waits while the user types), routing, chat, taskdraft (draft edits while agent requests wait), resume, agent, queue, approvals (the fake agent), running (the agents running, from the title bar), login (/login and Sign in open the agent's sign-in in a terminal), point, pointsend, attach, terminal, split, scroll (small wheel movements and transcript following), voice (downloads the light speech model once), review, toolviews, caffeinate, recover (a page that crashed is loaded again))
 //                 firstrun (the first-run screen, with stand-in agents; relaunches the app), created (the card an agent's new workspace gets), onboarding (a new install's checklist and its conversation, with the fake agent; needs E2E_FRESH=1)
 //                 handles (choose a unique publisher handle; needs a fresh local marketplace with dev accounts and LYNX_MARKETPLACE_URL)
 //                 creatorfilter (publisher handle search, multi-selection, pills and persistence; needs a local marketplace with two publishers)
@@ -3565,6 +3565,63 @@ export default function App() {
     check('MCP-UI resource rendered and its tool action reached the connector', true)
     await shot('mcp-ui')
     await ok('app', 'workspace_delete', { workspace: ws.id })
+  }
+
+  if (want('mcpauth')) {
+    // Authentication of a remote MCP server: OAuth is a choice of its own, and None means the server takes none.
+    // The fixture only takes a static token, so it stands in for a server where browser sign-in can't work.
+    const server = spawn('node', [join(root, 'scripts/fixture-token-server.mjs')], { stdio: ['ignore', 'pipe', 'inherit'] })
+    const url = await new Promise((resolve) => server.stdout.once('data', (d) => resolve(String(d).trim())))
+    const tpl = 'token-template-e2e'
+    let ws
+    try {
+      for (const id of ['noauth-e2e', 'tok-e2e']) await call('app', 'connector_remove', { connector: id })
+      await settings('Connectors')
+      await win.click('button:has-text("Add connector")')
+      await win.click('.sb-modal .h-kind:has-text("MCP server")')
+      check('mcpauth: a new MCP server starts on OAuth', (await win.locator('.sb-modal button[aria-label="Authentication"]').textContent()) === 'OAuth')
+      await win.click('.sb-modal button[aria-label="Authentication"]')
+      const kinds = await win.locator('.h-auth-menu [role="option"] b').allTextContents()
+      check('mcpauth: OAuth and None are separate options', kinds.includes('OAuth') && kinds.includes('None'), kinds.join(', '))
+      await shot('mcp-auth-options')
+      await win.click('.h-auth-menu [role="option"]:has-text("None")')
+      await win.fill('.sb-modal input[placeholder="https://mcp.example.com/mcp"]', url)
+      await win.fill('.sb-modal .sb-field:has(> span:text-is("Name")) input', 'noauth-e2e')
+      await win.click('.sb-modal footer button:has-text("Connect")')
+      await win.waitForSelector('.sb-modal input[type=password]', { timeout: 15000 }).catch(() => {})
+      const none = (await state()).connectors.find((c) => c.id === 'noauth-e2e')
+      check('mcpauth: None is kept, and a server that refuses it asks for a token', none?.auth?.kind === 'none' && none.status === 'needs-credentials' && (await win.locator('.sb-modal input[type=password]').count()) === 1, JSON.stringify(none && { auth: none.auth, status: none.status }))
+      await win.click('.sb-modal button:has-text("Cancel")')
+      await closeSettings()
+      // It points at the same server: gone, so the template below finds none of yours.
+      await ok('app', 'connector_remove', { connector: 'noauth-e2e' })
+
+      // A template whose server is not connected yet: Connect tries it straight away, and asks for a token only when sign-in can't work.
+      await ok('app', 'connector_add', { name: 'tok-e2e', url, headers: { Authorization: 'Bearer e2e-token' } })
+      ws = await ok('app', 'workspace_create', { name: 'Token template e2e', connectors: { tok: 'tok-e2e' }, files: { 'App.jsx': 'export default function App() { return <h1>Token</h1> }' } })
+      await ok('app', 'marketplace_publish', { workspace: ws.id, name: 'Token template e2e', description: 'A template on a server that only takes a token' })
+      await ok('app', 'connector_remove', { connector: 'tok-e2e' })
+      await market()
+      await win.click('.h-tile:has-text("Token template e2e")')
+      await win.click('.h-template button:has-text("Connect tok-e2e")')
+      await win.waitForSelector('.sb-modal input[type=password]', { timeout: 15000 }).catch(() => {})
+      const asked = (await state()).connectors.find((c) => c.id === 'tok-e2e')
+      check('mcpauth: from a template, a server that wants a token opens only the token prompt, on a bearer token', (await win.locator('.sb-modal input[type=password]').count()) === 1 && (await win.locator('.sb-modal button[aria-label="Authentication"]').textContent()) === 'Bearer token', JSON.stringify(asked && { status: asked.status, error: asked.error }))
+      await shot('fork-connect-token')
+      await win.fill('.sb-modal input[type=password]', 'e2e-token')
+      await win.click('.sb-modal button:has-text("Save and connect")')
+      await win.waitForSelector('.sb-modal', { state: 'detached', timeout: 15000 }).catch(() => {})
+      const tok = (await state()).connectors.find((c) => c.id === 'tok-e2e')
+      check('mcpauth: the token connects it, and the template picks it', tok?.status === 'connected' && (await win.locator('.h-template button[aria-label="tok-e2e connector"]').count()) === 1 && (await win.locator('.h-template button.h-install').isEnabled()), JSON.stringify(tok && { status: tok.status, error: tok.error }))
+      await shot('fork-connected')
+      await win.click('.h-top button.h-crumb:has-text("New workspace")')
+      await win.waitForSelector('.h-market')
+    } finally {
+      for (const id of ['noauth-e2e', 'tok-e2e']) await call('app', 'connector_remove', { connector: id })
+      if (ws) await call('app', 'workspace_delete', { workspace: ws.id })
+      rmSync(join(data, 'marketplace', tpl), { recursive: true, force: true })
+      server.kill()
+    }
   }
 
   if (want('oauth')) {
