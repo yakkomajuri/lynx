@@ -163,8 +163,8 @@ export const MarketplaceLive = Layer.effect(Marketplace)(
       id: t.id,
       name: String(t.name),
       description: String(t.description ?? ''),
-      icon: t.icon,
-      color: t.color,
+      icon: t.icon || undefined,
+      color: t.color || undefined,
       author: t.publisher?.name,
       source: 'remote',
       creator: t.creator === 'official' ? 'official' : 'community',
@@ -503,7 +503,7 @@ export const MarketplaceLive = Layer.effect(Marketplace)(
         const c = connectors.get(cid)
         return c?.url && !c.native ? [{ alias, name: c.name, url: c.url }] : []
       })
-      await writeFile(join(dir, 'manifest.json'), JSON.stringify({ name: ws.name, description: ws.description ?? '', icon: ws.icon, color: ws.color, ...manifest, requires, uses: ws.uses, ...(used.length ? { tools: used, schedules } : {}) }, null, 2))
+      await writeFile(join(dir, 'manifest.json'), JSON.stringify({ name: ws.name, description: ws.description ?? '', icon: ws.icon || undefined, color: ws.color || undefined, ...manifest, requires, uses: ws.uses, ...(used.length ? { tools: used, schedules } : {}) }, null, 2))
     }
 
     const publish: MarketplaceShape['publish'] = (input) =>
