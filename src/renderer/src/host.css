@@ -7904,6 +7904,122 @@ td.h-st-blank {
   }
 }
 
+/* The voice step: the agent's message box as it would be (the app's own composer and voice bar,
+   drawn, not live), and a switch under it with what turning it on means. */
+.fr-voice-demo {
+  width: min(560px, 100%);
+  margin-top: 30px;
+  padding: 18px 16px 16px;
+  border-radius: 18px;
+  background: var(--sb-bg);
+  box-shadow: 0 0 0 1px var(--sb-line), 0 18px 50px -18px rgb(0 0 0 / 0.25);
+  text-align: left;
+  user-select: none;
+  cursor: default;
+}
+.fr-voice-demo .sb-composer {
+  max-width: none;
+  padding: 0;
+}
+.fr-voice-demo .sb-composer-row {
+  align-items: center;
+}
+.fr-voice-demo .sb-attach,
+.fr-voice-demo .sb-send {
+  cursor: default;
+}
+.fr-voice-demo .sb-send.off {
+  opacity: 0.25;
+}
+.fr-voice-field {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 6px;
+  color: var(--sb-text);
+  font: 15.5px/1.5 var(--sb-font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fr-voice-field.empty {
+  color: var(--sb-faint);
+}
+/* The voice bar opens above the box when voice is on, and folds away when it is off. */
+.fr-voice-bar-slot {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+}
+.fr-voice-demo.on .fr-voice-bar-slot {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.fr-voice-bar-slot > .h-voice {
+  min-height: 0;
+  overflow: hidden;
+  margin: 0;
+}
+.fr-voice-demo.on .fr-voice-bar-slot > .h-voice {
+  margin-bottom: 10px;
+}
+.fr-voice-demo .h-voice-wave i {
+  animation: fr-voice-wave 0.9s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.13s);
+}
+@keyframes fr-voice-wave {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.fr-voice-demo .h-voice-toggle {
+  animation: fr-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.fr-voice-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  width: min(560px, 100%);
+  margin-top: 16px;
+  padding: 14px 16px;
+  box-sizing: border-box;
+  border-radius: 14px;
+  background: var(--sb-surface);
+  box-shadow: 0 0 0 1px var(--sb-line);
+  text-align: left;
+}
+.fr-voice-opt-text {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+.fr-voice-opt-name {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 550;
+  letter-spacing: -0.005em;
+}
+.fr-voice-opt small {
+  display: block;
+  margin-top: 4px;
+  color: var(--sb-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.fr-voice-opt .fr-voice-opt-status {
+  margin-top: 8px;
+  color: var(--sb-text);
+  font-variant-numeric: tabular-nums;
+}
+.fr-voice-opt .h-toggle {
+  flex: none;
+  margin-top: 2px;
+}
+
 /* The first run's last step: workspaces being made from templates, a line at a time, in the middle. */
 .fr-slide.fr-preparing {
   justify-content: center;
