@@ -4,7 +4,7 @@
 // agent whose work shows as one line a step and a card per connector, not as a chat. That agent's
 // conversation is the onboarding one (onboarding.ts): opening Lynx carries it on in the panel.
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowUp, Bell, ChevronsUpDown, CircleAlert, CircleCheck, Mic, Moon, Paperclip, Settings, Sun } from 'lucide-react'
+import { Bell, ChevronsUpDown, CircleAlert, CircleCheck, Moon, Settings, Sun } from 'lucide-react'
 import { agents, isBusy, type Provider, type SessionEvent, useSession } from '@kit/agents'
 import { call, useConnectors, useTool } from '@kit/core'
 import { Icon } from '@kit/icons'
@@ -423,7 +423,7 @@ function WhatItDoes() {
   )
 }
 
-/** Whether to turn voice input on: the agent's message box with voice at work, and a switch. The switch is only a wish until Continue (FirstRun). */
+/** Whether to turn voice input on: a switch, only a wish until Continue (FirstRun). */
 function VoiceStep({ wanted, onWant }: { wanted: boolean; onWant: (on: boolean) => void }) {
   return (
     <section className="fr-slide fr-anchored fr-voice-step">
@@ -436,52 +436,7 @@ function VoiceStep({ wanted, onWant }: { wanted: boolean; onWant: (on: boolean) 
         </div>
         <Toggle on={wanted} label="Voice input" onChange={onWant} />
       </div>
-      <VoiceDemo />
     </section>
-  )
-}
-
-const VOICE_SAID = ['Show', 'me', "this week's", 'open', 'Linear', 'issues']
-/** The agent's message box with voice at work, whatever the switch says: the microphone in it, and what is said writing itself in, again and again. */
-function VoiceDemo() {
-  const [words, setWords] = useState(0)
-  useEffect(() => {
-    // A beat of listening, a word at a time, a pause on the whole line, then again.
-    let n = 0
-    const t = setInterval(() => {
-      n = (n + 1) % (VOICE_SAID.length + 6)
-      setWords(Math.max(0, Math.min(VOICE_SAID.length, n - 2)))
-    }, 380)
-    return () => clearInterval(t)
-  }, [])
-  const said = VOICE_SAID.slice(0, words).join(' ')
-  return (
-    <div className="fr-voice-demo fr-in" style={{ '--d': 350 } as React.CSSProperties} aria-hidden="true">
-      <div className="h-voice listening hearing">
-          <span className="h-voice-wave">
-            {Array.from({ length: 7 }, (_, i) => (
-              <i key={i} style={{ '--i': i } as React.CSSProperties} />
-            ))}
-          </span>
-          <span className="h-voice-label">Listening</span>
-      </div>
-      <div className="sb-composer line">
-        <div className="sb-composer-box">
-          <div className="sb-composer-row">
-            <span className="sb-attach">
-              <Paperclip size={17} strokeWidth={1.7} />
-            </span>
-            <span className={`fr-voice-field${said ? '' : ' empty'}`}>{said || 'Ask anything, @ to mention'}</span>
-            <span className="sb-attach h-voice-toggle on">
-              <Mic size={17} strokeWidth={1.7} />
-            </span>
-            <span className={`sb-send${said ? '' : ' off'}`}>
-              <ArrowUp size={18} strokeWidth={2.2} />
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
   )
 }
 

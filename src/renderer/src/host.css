@@ -7904,58 +7904,7 @@ td.h-st-blank {
   }
 }
 
-/* The voice step: a switch with what turning it on means, and under it the agent's message box with
-   voice at work (the app's own composer and voice bar, drawn, not live). */
-.fr-voice-demo {
-  width: min(660px, 100%);
-  margin-top: 28px;
-  text-align: left;
-  user-select: none;
-  cursor: default;
-}
-.fr-voice-demo .sb-composer {
-  max-width: none;
-  padding: 0;
-}
-.fr-voice-demo .sb-composer-row {
-  align-items: center;
-}
-.fr-voice-demo .sb-attach,
-.fr-voice-demo .sb-send {
-  cursor: default;
-}
-.fr-voice-demo .sb-send.off {
-  opacity: 0.25;
-}
-.fr-voice-field {
-  flex: 1;
-  min-width: 0;
-  padding: 7px 6px;
-  color: var(--sb-text);
-  font: 15.5px/1.5 var(--sb-font);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.fr-voice-field.empty {
-  color: var(--sb-faint);
-}
-.fr-voice-demo .h-voice {
-  margin: 0 0 10px;
-}
-.fr-voice-demo .h-voice-wave i {
-  animation: fr-voice-wave 0.9s ease-in-out infinite;
-  animation-delay: calc(var(--i) * -0.13s);
-}
-@keyframes fr-voice-wave {
-  0%,
-  100% {
-    transform: scaleY(0.25);
-  }
-  50% {
-    transform: scaleY(1);
-  }
-}
+/* The voice step: a switch with what turning it on means. */
 .fr-voice-opt {
   display: flex;
   align-items: flex-start;

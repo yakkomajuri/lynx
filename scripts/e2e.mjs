@@ -5351,9 +5351,9 @@ export default async function ({ cwd }) {
     check('first run: what Lynx does plays out: a row picked, a button made, Claude Code running', (await win.locator('.fr-demo-running').innerText()).includes('Claude Code running') && (await win.locator('.fr-demo-running .sb-spinner').count()) === 1 && (await win.locator('.fr-demo-cursor .hand').count()) === 1 && (await win.locator('.fr-dots button').count()) === 5)
     await shot('firstrun-demo-running')
     await next().click()
-    // Voice input: the message box with voice at work, and a switch, off, that says what turning it on means. Left off, Continue goes on.
+    // Voice input: a switch, off, that says what turning it on means. Left off, Continue goes on.
     await until('the voice step', async () => (await win.locator('.fr h2').innerText().catch(() => '')) === 'Enable voice input?', 10000)
-    check('first run: the voice step shows the message box with voice at work, and a switch that starts off', (await win.locator('.fr-voice-demo .sb-composer').count()) === 1 && (await win.locator('.fr-voice-demo .h-voice-toggle').count()) === 1 && (await win.locator('.fr-voice-opt [role="switch"]').getAttribute('aria-checked')) === 'false')
+    check('first run: the voice step has a switch that starts off', (await win.locator('.fr-voice-opt [role="switch"]').getAttribute('aria-checked')) === 'false')
     // On and off again before Continue: only a wish, nothing downloads.
     await win.locator('.fr-voice-opt [role="switch"]').click()
     check('first run: switched on, voice is not on yet: that waits for Continue', (await win.locator('.fr-voice-opt [role="switch"]').getAttribute('aria-checked')) === 'true' && !(await win.evaluate(() => window.sb.state())).voice.enabled)
