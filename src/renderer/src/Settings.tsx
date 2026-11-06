@@ -355,39 +355,68 @@ export function AppearanceView({ state, toast }: { state: AppState; toast: Toast
   )
 }
 
+/** A row in the picture: an icon and a label, `w` wide (a share of the row). */
+const LpItem = ({ w, on, cls = '' }: { w: number; on?: boolean; cls?: string }) => (
+  <span className={`h-lp-item${on ? ' on' : ''}${cls ? ` ${cls}` : ''}`}>
+    <i className="ic" />
+    <i className="tx" style={{ width: `${w}%` }} />
+  </span>
+)
+/** A button in the picture: an outline with an icon and a label. */
+const LpButton = ({ cls = '' }: { cls?: string }) => (
+  <span className={`h-lp-btn${cls ? ` ${cls}` : ''}`}>
+    <i className="ic" />
+    <i className="tx" />
+  </span>
+)
+
 /**
  * The window in small, laid out as a choice would have it, drawn after the real one: the title bar with
  * the workspace's name and its buttons; the workspaces as a sidebar (search, the list with the open one
  * picked, and running agents, notifications and settings at its foot) or as the list that drops from the
  * name; the agent as a panel beside the workspace, or floating over it above the bar along the bottom.
- * What the row of choices is about (`focus`) is in the accent colour; the rest is grey.
+ * The workspace is the onboarding one, a header over a list. What the row of choices is about (`focus`)
+ * is in the accent colour; the rest is grey.
  */
 function LayoutPicture({ workspaces, agent, focus }: LayoutSettings & { focus: 'workspaces' | 'agent' }) {
   const ws = focus === 'workspaces' ? ' fx' : ''
   const ag = focus === 'agent' ? ' fx' : ''
   const chat = (
     <>
-      <i className="h-lp-msg me" />
-      <i className="h-lp-msg" />
-      <i className="h-lp-msg short" />
-      <b className="h-lp-input" />
+      <span className="h-lp-tabs">
+        <i className="on" />
+        <i />
+      </span>
+      <span className="h-lp-chat">
+        <span className="h-lp-bubble">
+          <i />
+        </span>
+        <i className="h-lp-text" style={{ width: '88%' }} />
+        <i className="h-lp-text" style={{ width: '70%' }} />
+        <i className="h-lp-text" style={{ width: '80%' }} />
+      </span>
+      <span className="h-lp-input">
+        <i />
+        <b />
+      </span>
     </>
   )
   return (
     <span className={`h-lp ${workspaces} ${agent}`} aria-hidden>
       <span className="h-lp-bar">
         <span className={`h-lp-title${workspaces === 'top' ? ws : ''}`}>
-          <i />
+          <i className="ic" />
+          <i className="tx" />
           {workspaces === 'top' && <em />}
         </span>
         <span className="h-lp-acts">
-          <i className="h-lp-pill" />
-          {agent === 'panel' && <i className={`h-lp-pill agent${ag}`} />}
+          <LpButton />
+          {agent === 'panel' && <LpButton cls={`agent${ag}`} />}
           {workspaces === 'top' && (
             <>
-              <i className="h-lp-dot" />
-              <i className="h-lp-dot" />
-              <i className="h-lp-dot" />
+              <i className="h-lp-icon" />
+              <i className="h-lp-icon" />
+              <i className="h-lp-icon" />
             </>
           )}
         </span>
@@ -395,24 +424,37 @@ function LayoutPicture({ workspaces, agent, focus }: LayoutSettings & { focus: '
       <span className="h-lp-body">
         {workspaces === 'side' && (
           <span className={`h-lp-side${ws}`}>
-            <i className="search" />
-            <i className="on" />
-            <i />
-            <i className="short" />
+            <LpItem w={55} cls="search" />
+            <i className="h-lp-label" />
+            <LpItem w={70} on />
+            <LpItem w={55} />
+            <LpItem w={62} />
             <span className="h-lp-side-foot">
-              <i />
-              <i />
-              <i />
+              <LpItem w={66} />
+              <LpItem w={58} />
+              <LpItem w={48} />
             </span>
           </span>
         )}
         <span className="h-lp-main">
           <span className="h-lp-row">
             <span className="h-lp-ws">
-              <i />
-              <i />
-              <i />
-              <i />
+              <span className="h-lp-head">
+                <i className="logo" />
+                <span>
+                  <i className="h1" />
+                  <i className="sub" />
+                </span>
+              </span>
+              <span className="h-lp-list">
+                {[64, 52, 58].map((w, n) => (
+                  <span key={n} className="h-lp-li">
+                    <i className="num" />
+                    <i className="tx" style={{ width: `${w}%` }} />
+                    <i className="more" />
+                  </span>
+                ))}
+              </span>
             </span>
             {agent === 'panel' && <span className={`h-lp-agent${ag}`}>{chat}</span>}
           </span>
@@ -420,7 +462,8 @@ function LayoutPicture({ workspaces, agent, focus }: LayoutSettings & { focus: '
             <>
               <span className={`h-lp-agent float${ag}`}>{chat}</span>
               <span className="h-lp-foot">
-                <i className={`h-lp-pill agent${ag}`} />
+                <LpButton cls={`agent${ag}`} />
+                <i className="h-lp-icon" />
               </span>
             </>
           )}
@@ -428,9 +471,10 @@ function LayoutPicture({ workspaces, agent, focus }: LayoutSettings & { focus: '
       </span>
       {workspaces === 'top' && focus === 'workspaces' && (
         <span className="h-lp-menu fx">
-          <i className="on" />
-          <i />
-          <i className="short" />
+          <LpItem w={70} on />
+          <LpItem w={55} />
+          <LpItem w={62} />
+          <LpItem w={48} cls="new" />
         </span>
       )}
     </span>
