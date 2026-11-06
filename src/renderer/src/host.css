@@ -7198,7 +7198,8 @@ td.h-st-blank {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: color-mix(in oklab, var(--sb-bg), #000 calc(var(--sb-dark, 0) * 40%));
+  --fr-bg: color-mix(in oklab, var(--sb-bg), #000 calc(var(--sb-dark, 0) * 40%));
+  background: var(--fr-bg);
   color: var(--sb-text);
 }
 /* The screen's words can be selected, with the text cursor over them; the rest of the app keeps selection off. */
@@ -7353,7 +7354,7 @@ td.h-st-blank {
   justify-content: space-between;
   gap: 12px;
   padding: 18px 24px 22px;
-  background: linear-gradient(to top, var(--sb-bg) 55%, transparent);
+  background: var(--fr-bg);
   -webkit-app-region: no-drag;
 }
 .fr-dots {
