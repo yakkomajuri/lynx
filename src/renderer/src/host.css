@@ -7944,24 +7944,8 @@ td.h-st-blank {
 .fr-voice-field.empty {
   color: var(--sb-faint);
 }
-/* The voice bar opens above the box when voice is on, and folds away when it is off. */
-.fr-voice-bar-slot {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition: grid-template-rows 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
-}
-.fr-voice-demo.on .fr-voice-bar-slot {
-  grid-template-rows: 1fr;
-  opacity: 1;
-}
-.fr-voice-bar-slot > .h-voice {
-  min-height: 0;
-  overflow: hidden;
-  margin: 0;
-}
-.fr-voice-demo.on .fr-voice-bar-slot > .h-voice {
-  margin-bottom: 10px;
+.fr-voice-demo .h-voice {
+  margin: 0 0 10px;
 }
 .fr-voice-demo .h-voice-wave i {
   animation: fr-voice-wave 0.9s ease-in-out infinite;
@@ -7975,9 +7959,6 @@ td.h-st-blank {
   50% {
     transform: scaleY(1);
   }
-}
-.fr-voice-demo .h-voice-toggle {
-  animation: fr-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .fr-voice-opt {
   display: flex;

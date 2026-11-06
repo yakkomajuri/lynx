@@ -109,6 +109,18 @@ export function FirstRun({ state, onDone }: { state: AppState; /** Finished or s
     setPreparing(true)
   }
   const next = () => (last ? finish() : setAt((n) => n + 1))
+  // Voice input as the switch on its step has it: put into effect only on going on past the step, so
+  // flicking it on and off downloads nothing. On, the model downloads in the background (src/main/voice.ts).
+  const [voiceWanted, setVoiceWanted] = useState(state.voice.enabled)
+  const from = useRef(at)
+  useEffect(() => {
+    const left = STEPS[from.current] === 'voice' && at > from.current
+    from.current = at
+    if (!left || voiceWanted === state.voice.enabled) return
+    const fail = (e: unknown) => console.error('[first run] could not change voice input', e)
+    if (voiceWanted) void bridge.voice.set({ enabled: true, model: FIRST_RUN_VOICE_MODEL }).catch(fail)
+    else void bridge.voice.set({ enabled: false }).then(() => (state.voice.download ? bridge.voice.cancel() : undefined)).catch(fail)
+  }, [at])
   const blocked = step === 'agents' && !agentReady
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -144,7 +156,7 @@ export function FirstRun({ state, onDone }: { state: AppState; /** Finished or s
         {step === 'welcome' && <Welcome key="welcome" />}
         {step === 'agents' && <Agents key="agents" onReady={setAgentReady} />}
         {step === 'what' && <WhatItDoes key="what" />}
-        {step === 'voice' && <VoiceStep key="voice" voice={state.voice} />}
+        {step === 'voice' && <VoiceStep key="voice" voice={state.voice} wanted={voiceWanted} onWant={setVoiceWanted} />}
         {step === 'connect' && <Connect key="connect" state={state} />}
       </div>
       <footer className="fr-foot">
@@ -408,39 +420,36 @@ function WhatItDoes() {
   )
 }
 
-/** Whether to turn voice input on: the agent's message box as it would be, and a switch. On, the model downloads in the background (src/main/voice.ts); off again, a download under way stops. */
-function VoiceStep({ voice }: { voice: AppState['voice'] }) {
-  const on = voice.enabled
+/** Whether to turn voice input on: the agent's message box with voice at work, and a switch. The switch is only a wish until Continue (FirstRun). */
+function VoiceStep({ voice, wanted, onWant }: { voice: AppState['voice']; wanted: boolean; onWant: (on: boolean) => void }) {
   const down = voice.download?.model === voice.model ? voice.download : undefined
-  const fail = (e: unknown) => console.error('[first run] could not change voice input', e)
-  const set = (next: boolean) => {
-    if (next) void bridge.voice.set({ enabled: true, model: FIRST_RUN_VOICE_MODEL }).catch(fail)
-    else void bridge.voice.set({ enabled: false }).then(() => (down ? bridge.voice.cancel() : undefined)).catch(fail)
-  }
-  const status = !on ? null : down ? (down.phase === 'unpacking' ? 'Unpacking the voice model…' : `Downloading the voice model… ${Math.floor((down.received / Math.max(down.total, 1)) * 100)}%`) : voice.installed.includes(voice.model) ? 'Voice input is ready.' : null
+  const status =
+    wanted && !voice.enabled ? 'The download starts when you continue.'
+    : !wanted || !voice.enabled ? null
+    : down ? (down.phase === 'unpacking' ? 'Unpacking the voice model…' : `Downloading the voice model… ${Math.floor((down.received / Math.max(down.total, 1)) * 100)}%`)
+    : voice.installed.includes(voice.model) ? 'Voice input is ready.'
+    : null
   return (
     <section className="fr-slide fr-anchored fr-voice-step">
       <h2 className="fr-in">Enable voice input?</h2>
-      <VoiceDemo on={on} />
+      <VoiceDemo />
       <div className="fr-voice-opt fr-in" style={{ '--d': 350 } as React.CSSProperties}>
-        <div className="fr-voice-opt-text" onClick={() => set(!on)}>
+        <div className="fr-voice-opt-text" onClick={() => onWant(!wanted)}>
           <span className="fr-voice-opt-name">Voice input</span>
           <small>This will download a 1.7GB voice model locally. The download will run in the background and the voice feature will become available within a few minutes. You can complete the onboarding normally and configure this any time in Settings.</small>
           {status && <small className="fr-voice-opt-status" aria-live="polite">{status}</small>}
         </div>
-        <Toggle on={on} label="Voice input" onChange={set} />
+        <Toggle on={wanted} label="Voice input" onChange={onWant} />
       </div>
     </section>
   )
 }
 
 const VOICE_SAID = ['Show', 'me', "this week's", 'open', 'Linear', 'issues']
-/** The agent's message box: plain with voice off; on, the microphone is in it and what is said writes itself in, again and again. */
-function VoiceDemo({ on }: { on: boolean }) {
+/** The agent's message box with voice at work, whatever the switch says: the microphone in it, and what is said writing itself in, again and again. */
+function VoiceDemo() {
   const [words, setWords] = useState(0)
   useEffect(() => {
-    setWords(0)
-    if (!on) return
     // A beat of listening, a word at a time, a pause on the whole line, then again.
     let n = 0
     const t = setInterval(() => {
@@ -448,12 +457,11 @@ function VoiceDemo({ on }: { on: boolean }) {
       setWords(Math.max(0, Math.min(VOICE_SAID.length, n - 2)))
     }, 380)
     return () => clearInterval(t)
-  }, [on])
+  }, [])
   const said = VOICE_SAID.slice(0, words).join(' ')
   return (
-    <div className={`fr-voice-demo fr-in${on ? ' on' : ''}`} style={{ '--d': 200 } as React.CSSProperties} aria-hidden="true">
-      <div className="fr-voice-bar-slot">
-        <div className="h-voice listening hearing">
+    <div className="fr-voice-demo fr-in" style={{ '--d': 200 } as React.CSSProperties} aria-hidden="true">
+      <div className="h-voice listening hearing">
           <span className="h-voice-wave">
             {Array.from({ length: 7 }, (_, i) => (
               <i key={i} style={{ '--i': i } as React.CSSProperties} />
@@ -461,7 +469,6 @@ function VoiceDemo({ on }: { on: boolean }) {
           </span>
           <span className="h-voice-label">Listening</span>
           <span className="h-voice-sub">Pause to send</span>
-        </div>
       </div>
       <div className="sb-composer line">
         <div className="sb-composer-box">
@@ -470,11 +477,9 @@ function VoiceDemo({ on }: { on: boolean }) {
               <Paperclip size={17} strokeWidth={1.7} />
             </span>
             <span className={`fr-voice-field${said ? '' : ' empty'}`}>{said || 'Ask anything, @ to mention'}</span>
-            {on && (
-              <span className="sb-attach h-voice-toggle on">
-                <Mic size={17} strokeWidth={1.7} />
-              </span>
-            )}
+            <span className="sb-attach h-voice-toggle on">
+              <Mic size={17} strokeWidth={1.7} />
+            </span>
             <span className={`sb-send${said ? '' : ' off'}`}>
               <ArrowUp size={18} strokeWidth={2.2} />
             </span>

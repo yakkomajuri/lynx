@@ -5351,9 +5351,13 @@ export default async function ({ cwd }) {
     check('first run: what Lynx does plays out: a row picked, a button made, Claude Code running', (await win.locator('.fr-demo-running').innerText()).includes('Claude Code running') && (await win.locator('.fr-demo-running .sb-spinner').count()) === 1 && (await win.locator('.fr-demo-cursor .hand').count()) === 1 && (await win.locator('.fr-dots button').count()) === 5)
     await shot('firstrun-demo-running')
     await next().click()
-    // Voice input: the message box as it would be, and a switch, off, that says what turning it on means. Left off, Continue goes on.
+    // Voice input: the message box with voice at work, and a switch, off, that says what turning it on means. Left off, Continue goes on.
     await until('the voice step', async () => (await win.locator('.fr h2').innerText().catch(() => '')) === 'Enable voice input?', 10000)
-    check('first run: the voice step shows the message box, and a switch that starts off', (await win.locator('.fr-voice-demo .sb-composer').count()) === 1 && (await win.locator('.fr-voice-demo .h-voice-toggle').count()) === 0 && (await win.locator('.fr-voice-opt [role="switch"]').getAttribute('aria-checked')) === 'false')
+    check('first run: the voice step shows the message box with voice at work, and a switch that starts off', (await win.locator('.fr-voice-demo .sb-composer').count()) === 1 && (await win.locator('.fr-voice-demo .h-voice-toggle').count()) === 1 && (await win.locator('.fr-voice-opt [role="switch"]').getAttribute('aria-checked')) === 'false')
+    // On and off again before Continue: only a wish, nothing downloads.
+    await win.locator('.fr-voice-opt [role="switch"]').click()
+    check('first run: switched on, it says the download waits for Continue, and voice is not on yet', (await win.locator('.fr-voice-opt-status').innerText()) === 'The download starts when you continue.' && !(await win.evaluate(() => window.sb.state())).voice.enabled)
+    await win.locator('.fr-voice-opt [role="switch"]').click()
     check('first run: and the switch says what turning it on downloads', (await win.locator('.fr-voice-opt small').first().innerText()).startsWith('This will download a 1.7GB voice model locally') && JSON.stringify((await win.locator('.fr-foot .fr-acts .fr-btn').allInnerTexts()).map((t) => t.replace(/\s*↵\s*$/, '').trim())) === '["Back","Continue"]')
     await win.waitForTimeout(800)
     await shot('firstrun-voice')
