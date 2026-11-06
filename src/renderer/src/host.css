@@ -8216,6 +8216,14 @@ td.h-st-blank {
 .fr-modal small.bad {
   color: var(--sb-bad);
 }
+.fr-other {
+  margin: 14px 0 0;
+  color: var(--sb-faint);
+  font-size: 13px;
+}
+.fr-other .fr-link {
+  font-size: inherit;
+}
 .fr-link {
   align-self: flex-start;
   padding: 0;

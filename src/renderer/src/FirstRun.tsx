@@ -43,6 +43,9 @@ const AGENTS = [
   { name: 'codex', title: 'Codex', docs: 'https://learn.chatgpt.com/docs/codex/cli#getting-started' },
 ]
 
+/** Where to ask for an agent Lynx does not run yet: the project's GitHub issues. */
+const AGENT_REQUESTS = 'https://github.com/yakkomajuri/lynx/issues/new'
+
 /** Services to pick from, by their MCP servers: examples, not the limit. */
 const PICKS: { name: string; url: string; /** Where to make the token it asks for, when it asks for one. */ token?: string }[] = [
   { name: 'Linear', url: 'https://mcp.linear.app/mcp' },
@@ -129,7 +132,10 @@ export function FirstRun({ state, onDone }: { state: AppState; /** Finished or s
   const blocked = step === 'agents' && !agentReady
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement | null)?.closest?.('input, textarea')) return
+      const target = e.target as HTMLElement | null
+      if (target?.closest?.('input, textarea')) return
+      // Enter on a control (the voice switch, a pick, Back) is that control's: it is not Continue too.
+      if (e.key === 'Enter' && target?.closest?.('button, a, select, [role="switch"], [contenteditable="true"]')) return
       if ((e.key === 'Enter' || e.key === 'ArrowRight') && !blocked) next()
       else if (e.key === 'ArrowLeft' && at > 0) setAt(at - 1)
     }
@@ -332,6 +338,12 @@ function Agents({ onReady }: { onReady: (ready: boolean) => void }) {
         {status.ok === null ? <span className="fr-tick" /> : status.ok ? <CircleCheck className="fr-ok" size={17} strokeWidth={2} aria-hidden="true" /> : <CircleAlert className="fr-warn" size={17} strokeWidth={2} aria-hidden="true" />}
         <span>{status.text}</span>
       </div>
+      <p className="fr-other fr-in" style={{ '--d': 400 } as React.CSSProperties}>
+        Use another agent?{' '}
+        <button type="button" className="fr-link" onClick={() => void bridge.openExternal(AGENT_REQUESTS)}>
+          Submit a request.
+        </button>
+      </p>
     </section>
   )
 }

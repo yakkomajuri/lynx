@@ -5357,14 +5357,32 @@ export default async function ({ cwd }) {
     // Voice input: a switch, off, that says what turning it on means. Left off, Continue goes on.
     await until('the voice step', async () => (await win.locator('.fr h2').innerText().catch(() => '')) === 'Enable voice input?', 10000)
     check('first run: the voice step has a switch that starts off', (await win.locator('.fr-voice-opt [role="switch"]').getAttribute('aria-checked')) === 'false')
-    // On and off again before Continue: only a wish, nothing downloads.
-    await win.locator('.fr-voice-opt [role="switch"]').click()
-    check('first run: switched on, voice is not on yet: that waits for Continue', (await win.locator('.fr-voice-opt [role="switch"]').getAttribute('aria-checked')) === 'true' && !(await win.evaluate(() => window.sb.state())).voice.enabled)
-    await win.locator('.fr-voice-opt [role="switch"]').click()
+    // On and off again before Continue: only a wish, nothing downloads. Enter on the switch is the switch's, not Continue.
+    const voiceSwitch = win.locator('.fr-voice-opt [role="switch"]')
+    await voiceSwitch.focus()
+    await win.keyboard.press('Enter')
+    check('first run: Enter on the voice switch turns it on and stays on the step', (await voiceSwitch.getAttribute('aria-checked')) === 'true' && (await win.locator('.fr h2').innerText()) === 'Enable voice input?')
+    check('first run: switched on, voice is not on yet: that waits for Continue', !(await win.evaluate(() => window.sb.state())).voice.enabled)
+    await win.keyboard.press('Enter')
+    check('first run: Enter again turns it off, still on the step', (await voiceSwitch.getAttribute('aria-checked')) === 'false' && (await win.locator('.fr h2').innerText()) === 'Enable voice input?')
     check('first run: and the switch says what turning it on downloads', (await win.locator('.fr-voice-opt small').first().innerText()).startsWith('Downloads a 480MB model in the background') && JSON.stringify((await win.locator('.fr-foot .fr-acts .fr-btn').allInnerTexts()).map((t) => t.replace(/\s*↵\s*$/, '').trim())) === '["Back","Continue"]')
     await win.waitForTimeout(800)
     await shot('firstrun-voice')
+    // Continue applies the choice: on, voice is turned on with the step's model (and its download starts; stopped here).
+    const voiceBefore = (await state()).voice
+    await voiceSwitch.click()
     await next().click()
+    await until('voice on after Continue', async () => (await state()).voice.enabled === true, 5000)
+    check('first run: Continue with the switch on turns voice on, with the balanced model', (await state()).voice.model === 'parakeet')
+    await win.evaluate(([model]) => window.sb.voice.set({ enabled: false, model }).then(() => window.sb.voice.cancel()), [voiceBefore.model])
+    await until('voice off again', async () => !(await state()).voice.enabled && !(await state()).voice.download, 10000)
+    // Back to the step and on without it: off again, Continue leaves voice off.
+    await win.locator('.fr-foot .fr-btn', { hasText: 'Back' }).click()
+    await until('the voice step again', async () => (await win.locator('.fr h2').innerText().catch(() => '')) === 'Enable voice input?', 10000)
+    if ((await voiceSwitch.getAttribute('aria-checked')) === 'true') await voiceSwitch.click()
+    await next().click()
+    await win.waitForTimeout(300)
+    check('first run: Continue with the switch off leaves voice off', !(await state()).voice.enabled)
     await win.waitForSelector('.fr-ask input', { timeout: 10000 })
     check('first run: the picks sit in two even rows of four', JSON.stringify(Object.values((await win.locator('.fr-pick').evaluateAll((all) => all.map((b) => Math.round(b.getBoundingClientRect().top)))).reduce((rows, top) => ((rows[top] = (rows[top] ?? 0) + 1), rows), {}))) === '[4,4]')
     check('first run: the services step says what it is for, and that any MCP or API will do', (await win.locator('.fr-connect h2').innerText()) === 'Connect the services you use day-to-day' && (await win.locator('.fr-connect .fr-sub').innerText()) === 'You can connect any MCP or API. Below are just some examples.')
