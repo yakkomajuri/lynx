@@ -7907,7 +7907,7 @@ td.h-st-blank {
 /* The voice step: a switch with what turning it on means, and under it the agent's message box with
    voice at work (the app's own composer and voice bar, drawn, not live). */
 .fr-voice-demo {
-  width: min(560px, 100%);
+  width: min(660px, 100%);
   margin-top: 28px;
   text-align: left;
   user-select: none;
@@ -7960,7 +7960,7 @@ td.h-st-blank {
   display: flex;
   align-items: flex-start;
   gap: 24px;
-  width: min(560px, 100%);
+  width: min(660px, 100%);
   margin-top: 30px;
   padding: 18px 20px;
   box-sizing: border-box;
