@@ -1353,6 +1353,7 @@ await (await import('./marketplace-regressions.mjs')).marketplaceRegressions({ l
   check('a listed template that may call every tool of a connector is left out', !validSummary(summary({ requires: [{ alias: 'gh', name: 'GitHub', url: 'https://api.githubcopilot.com/mcp/' }], uses: { gh: '*' } })))
   check('so is one that names a connector it neither requires nor ships with', !validSummary(summary({ uses: { 'work-gmail': ['send_email'] } })))
   check('so is one that leaves uses out: installed, it would get every tool of each bound connector', !validSummary(summary({ requires: [{ alias: 'gh', name: 'GitHub', url: 'https://api.githubcopilot.com/mcp/' }], uses: undefined })) && validSummary(summary({ uses: {} })))
+  check('a blank icon or colour is the default: the template is still listed', validSummary(summary({ icon: '', color: '' })) && !validSummary(summary({ color: 5 })) && !validSummary(summary({ icon: 'x'.repeat(61) })))
   check('a connector URL that is not text is left out (it broke the page)', !validSummary(summary({ requires: [{ alias: 'x', name: 'X', url: 123 }] })))
   check('so are odd uses, hints, flags and schedules', !validSummary(summary({ uses: { app: 'all' } })) && !validSummary(summary({ requires: [{ alias: 'x', name: 'X', hint: 5 }] })) && !validSummary(summary({ requires: [{ alias: 'x', name: 'X', optional: 'yes' }] })) && !validSummary(summary({ tools: ['t'], schedules: [{ id: 's', tool: 'other', cron: '* * * * *' }] })) && !validSummary(summary({ requires: 'none' })))
   seen.length = 0

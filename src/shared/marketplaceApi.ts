@@ -162,6 +162,8 @@ const isStr = (v: unknown): v is string => typeof v === 'string'
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 const short = (v: unknown, max: number) => isStr(v) && v.length > 0 && v.length <= max
 const optional = (v: unknown, ok: (v: unknown) => boolean) => v === undefined || v === null || ok(v)
+/** An icon or colour: left blank ("") it is the default, as when it is left out. */
+const look = (v: unknown) => optional(v, (x) => x === '' || short(x, 60))
 const httpUrl = (v: unknown) => {
   if (!short(v, 500)) return false
   try {
@@ -247,8 +249,8 @@ export function validSummary(t: unknown): t is TemplateSummary {
     isStr(t.id) &&
     short(t.name, 60) &&
     isStr(t.description) &&
-    optional(t.icon, (v) => short(v, 60)) &&
-    optional(t.color, (v) => short(v, 60)) &&
+    look(t.icon) &&
+    look(t.color) &&
     Array.isArray(t.tags) &&
     t.tags.every(isStr) &&
     (t.creator === 'official' || t.creator === 'community') &&
