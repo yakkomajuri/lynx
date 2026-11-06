@@ -1,6 +1,6 @@
-// The first-run screen: before a new install's window shows the app, four steps over all of it.
+// The first-run screen: before a new install's window shows the app, five steps over all of it.
 // Welcome; Lynx runs on the user's own Claude Code or Codex (one installed and signed in lets them
-// on); what Lynx does; and connecting the services they use, by picking them or by saying so to an
+// on); what Lynx does; whether to turn voice input on (its model downloads meanwhile); and connecting the services they use, by picking them or by saying so to an
 // agent whose work shows as one line a step and a card per connector, not as a chat. That agent's
 // conversation is the onboarding one (onboarding.ts): opening Lynx carries it on in the panel.
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -26,7 +26,10 @@ import { plannedTemplates, type Planned } from './firstRunTemplates'
 const DONE = 'sb.firstrun.done'
 export const firstRunDone = () => !!localStorage.getItem(DONE) || !!bridge.skipFirstRun
 
-const STEPS = ['welcome', 'agents', 'what', 'connect'] as const
+const STEPS = ['welcome', 'agents', 'what', 'voice', 'connect'] as const
+
+/** The speech model the voice step turns on: the most accurate, about 1.7 GB to download. */
+const FIRST_RUN_VOICE_MODEL = 'cohere'
 
 /** The two agents Lynx runs, and where each says how to install it. */
 const AGENTS = [
@@ -106,9 +109,17 @@ export function FirstRun({ state, onDone }: { state: AppState; /** Finished or s
   }
   const next = () => (last ? finish() : setAt((n) => n + 1))
   const blocked = step === 'agents' && !agentReady
+  // The voice step asks, until voice is on: Yes or Not right now, in place of Continue. A big download is never Enter's to start.
+  const askVoice = step === 'voice' && !state.voice.enabled
+  const enableVoice = () => {
+    // Turned on with a model that is not here, it downloads in the background (src/main/voice.ts).
+    void bridge.voice.set({ enabled: true, model: FIRST_RUN_VOICE_MODEL }).catch((e) => console.error('[first run] could not turn voice on', e))
+    setAt((n) => n + 1)
+  }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement | null)?.closest?.('input, textarea')) return
+      if (askVoice && e.key !== 'ArrowLeft') return
       if ((e.key === 'Enter' || e.key === 'ArrowRight') && !blocked) next()
       else if (e.key === 'ArrowLeft' && at > 0) setAt(at - 1)
     }
@@ -140,6 +151,7 @@ export function FirstRun({ state, onDone }: { state: AppState; /** Finished or s
         {step === 'welcome' && <Welcome key="welcome" />}
         {step === 'agents' && <Agents key="agents" onReady={setAgentReady} />}
         {step === 'what' && <WhatItDoes key="what" />}
+        {step === 'voice' && <VoiceStep key="voice" voice={state.voice} />}
         {step === 'connect' && <Connect key="connect" state={state} />}
       </div>
       <footer className="fr-foot">
@@ -154,9 +166,20 @@ export function FirstRun({ state, onDone }: { state: AppState; /** Finished or s
               Back
             </button>
           )}
-          <button className={`fr-btn${last && !connected.length ? '' : ' primary'}`} disabled={blocked} onClick={next}>
-            {label} <kbd>↵</kbd>
-          </button>
+          {askVoice ? (
+            <>
+              <button className="fr-btn" onClick={() => setAt(at + 1)}>
+                Not right now
+              </button>
+              <button className="fr-btn primary" onClick={enableVoice}>
+                Yes
+              </button>
+            </>
+          ) : (
+            <button className={`fr-btn${last && !connected.length ? '' : ' primary'}`} disabled={blocked} onClick={next}>
+              {label} <kbd>↵</kbd>
+            </button>
+          )}
         </div>
       </footer>
     </div>
@@ -399,6 +422,23 @@ function WhatItDoes() {
     <section className="fr-slide fr-anchored">
       <h2 className="fr-in">Connect your data, build custom UIs, and trigger local agents from them</h2>
       <PointDemo />
+    </section>
+  )
+}
+
+/** Whether to turn voice input on: asked, or, come back to once it is on, how its download is going. */
+function VoiceStep({ voice }: { voice: AppState['voice'] }) {
+  const downloading = voice.download?.model === voice.model
+  return (
+    <section className="fr-slide fr-anchored">
+      <h2 className="fr-in">{voice.enabled ? 'Voice input is on' : 'Enable voice input?'}</h2>
+      <p className="fr-sub fr-in" style={{ '--d': 200 } as React.CSSProperties}>
+        {!voice.enabled
+          ? 'This will download a 1.7GB voice model locally, ok to proceed? The download will run in the background and the voice feature will become available within a few minutes. You can complete the onboarding normally and configure this any time in Settings.'
+          : downloading
+            ? 'The voice model is downloading in the background, and voice input becomes available once it is done. You can configure this any time in Settings.'
+            : 'You can configure this any time in Settings.'}
+      </p>
     </section>
   )
 }
