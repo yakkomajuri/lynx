@@ -261,7 +261,7 @@ function Welcome() {
         ))}
       </h1>
       <p className="fr-sub fr-in" style={{ '--d': 900 } as React.CSSProperties}>
-        The fully customizable harness for knowledge work
+        The open-source AI workspace you can fully customize
       </p>
     </section>
   )
