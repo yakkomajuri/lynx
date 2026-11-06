@@ -397,7 +397,7 @@ function SignInRow({ agent, provider, delay, onChanged }: { agent: (typeof AGENT
 function WhatItDoes() {
   return (
     <section className="fr-slide fr-anchored">
-      <h2 className="fr-in">Connect your data, quickly build custom UIs, and trigger local agents from them</h2>
+      <h2 className="fr-in">Connect your data, build custom UIs, and trigger local agents from them</h2>
       <PointDemo />
     </section>
   )
