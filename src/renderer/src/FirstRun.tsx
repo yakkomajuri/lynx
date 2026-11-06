@@ -156,7 +156,7 @@ export function FirstRun({ state, onDone }: { state: AppState; /** Finished or s
         {step === 'welcome' && <Welcome key="welcome" />}
         {step === 'agents' && <Agents key="agents" onReady={setAgentReady} />}
         {step === 'what' && <WhatItDoes key="what" />}
-        {step === 'voice' && <VoiceStep key="voice" voice={state.voice} wanted={voiceWanted} onWant={setVoiceWanted} />}
+        {step === 'voice' && <VoiceStep key="voice" wanted={voiceWanted} onWant={setVoiceWanted} />}
         {step === 'connect' && <Connect key="connect" state={state} />}
       </div>
       <footer className="fr-foot">
@@ -421,22 +421,14 @@ function WhatItDoes() {
 }
 
 /** Whether to turn voice input on: the agent's message box with voice at work, and a switch. The switch is only a wish until Continue (FirstRun). */
-function VoiceStep({ voice, wanted, onWant }: { voice: AppState['voice']; wanted: boolean; onWant: (on: boolean) => void }) {
-  const down = voice.download?.model === voice.model ? voice.download : undefined
-  const status =
-    wanted && !voice.enabled ? 'The download starts when you continue.'
-    : !wanted || !voice.enabled ? null
-    : down ? (down.phase === 'unpacking' ? 'Unpacking the voice model…' : `Downloading the voice model… ${Math.floor((down.received / Math.max(down.total, 1)) * 100)}%`)
-    : voice.installed.includes(voice.model) ? 'Voice input is ready.'
-    : null
+function VoiceStep({ wanted, onWant }: { wanted: boolean; onWant: (on: boolean) => void }) {
   return (
     <section className="fr-slide fr-anchored fr-voice-step">
       <h2 className="fr-in">Enable voice input?</h2>
       <div className="fr-voice-opt fr-in" style={{ '--d': 200 } as React.CSSProperties}>
         <div className="fr-voice-opt-text" onClick={() => onWant(!wanted)}>
           <span className="fr-voice-opt-name">Voice input</span>
-          <small>This will download a 1.7GB voice model locally. The download will run in the background and the voice feature will become available within a few minutes. You can complete the onboarding normally and configure this any time in Settings.</small>
-          {status && <small className="fr-voice-opt-status" aria-live="polite">{status}</small>}
+          <small>Downloads a 1.7GB model in the background, ready in a few minutes. Change it any time in Settings.</small>
         </div>
         <Toggle on={wanted} label="Voice input" onChange={onWant} />
       </div>

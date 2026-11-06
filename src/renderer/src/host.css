@@ -7987,11 +7987,6 @@ td.h-st-blank {
   font-size: 12.5px;
   line-height: 1.5;
 }
-.fr-voice-opt .fr-voice-opt-status {
-  margin-top: 8px;
-  color: var(--sb-text);
-  font-variant-numeric: tabular-nums;
-}
 .fr-voice-opt .h-toggle {
   flex: none;
   margin-top: 2px;
