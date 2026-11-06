@@ -2048,7 +2048,8 @@ export default function App() {
     await win.click('.sb-btn:has-text("Agent")').catch(() => {})
     await shot('theme-slate-workspace')
     // Edited by hand, and a theme this version does not have.
-    writeFileSync(join(data, 'settings.json'), JSON.stringify({ theme: 'sand' }))
+    // Only the theme is edited: the layout stays as written (the title bar the steps after expect), not the new-install default.
+    writeFileSync(join(data, 'settings.json'), JSON.stringify({ ...JSON.parse(readFileSync(join(data, 'settings.json'), 'utf8')), theme: 'sand' }))
     await until('theme follows the file', async () => (await state()).settings.theme === 'sand', 5000).catch(() => {})
     check('themes: a change made in the file shows in the window', (await win.evaluate(() => document.documentElement.dataset.sbTheme)) === 'sand')
     check('themes: an unknown one is refused', /No theme named/.test((await call('app', 'theme_set', { theme: 'neon' })).error ?? '') && (await state()).settings.theme === 'sand')
