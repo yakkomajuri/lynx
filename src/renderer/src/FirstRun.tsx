@@ -432,8 +432,7 @@ function VoiceStep({ voice, wanted, onWant }: { voice: AppState['voice']; wanted
   return (
     <section className="fr-slide fr-anchored fr-voice-step">
       <h2 className="fr-in">Enable voice input?</h2>
-      <VoiceDemo />
-      <div className="fr-voice-opt fr-in" style={{ '--d': 350 } as React.CSSProperties}>
+      <div className="fr-voice-opt fr-in" style={{ '--d': 200 } as React.CSSProperties}>
         <div className="fr-voice-opt-text" onClick={() => onWant(!wanted)}>
           <span className="fr-voice-opt-name">Voice input</span>
           <small>This will download a 1.7GB voice model locally. The download will run in the background and the voice feature will become available within a few minutes. You can complete the onboarding normally and configure this any time in Settings.</small>
@@ -441,6 +440,7 @@ function VoiceStep({ voice, wanted, onWant }: { voice: AppState['voice']; wanted
         </div>
         <Toggle on={wanted} label="Voice input" onChange={onWant} />
       </div>
+      <VoiceDemo />
     </section>
   )
 }
@@ -460,7 +460,7 @@ function VoiceDemo() {
   }, [])
   const said = VOICE_SAID.slice(0, words).join(' ')
   return (
-    <div className="fr-voice-demo fr-in" style={{ '--d': 200 } as React.CSSProperties} aria-hidden="true">
+    <div className="fr-voice-demo fr-in" style={{ '--d': 350 } as React.CSSProperties} aria-hidden="true">
       <div className="h-voice listening hearing">
           <span className="h-voice-wave">
             {Array.from({ length: 7 }, (_, i) => (

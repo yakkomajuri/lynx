@@ -7904,11 +7904,11 @@ td.h-st-blank {
   }
 }
 
-/* The voice step: the agent's message box as it would be (the app's own composer and voice bar,
-   drawn, not live), and a switch under it with what turning it on means. */
+/* The voice step: a switch with what turning it on means, and under it the agent's message box with
+   voice at work (the app's own composer and voice bar, drawn, not live). */
 .fr-voice-demo {
   width: min(560px, 100%);
-  margin-top: 30px;
+  margin-top: 28px;
   text-align: left;
   user-select: none;
   cursor: default;
@@ -7961,7 +7961,7 @@ td.h-st-blank {
   align-items: flex-start;
   gap: 20px;
   width: min(560px, 100%);
-  margin-top: 16px;
+  margin-top: 30px;
   padding: 14px 16px;
   box-sizing: border-box;
   border-radius: 14px;
