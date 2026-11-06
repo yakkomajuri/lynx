@@ -428,7 +428,8 @@ function VoiceStep({ wanted, onWant }: { wanted: boolean; onWant: (on: boolean) 
       <div className="fr-voice-opt fr-in" style={{ '--d': 200 } as React.CSSProperties}>
         <div className="fr-voice-opt-text" onClick={() => onWant(!wanted)}>
           <span className="fr-voice-opt-name">Voice input</span>
-          <small>Downloads a 1.7GB model in the background, ready in a few minutes. Change it any time in Settings.</small>
+          <small>Downloads a 1.7GB model in the background, ready in a few minutes.</small>
+          <small>Configure voice input any time in Settings.</small>
         </div>
         <Toggle on={wanted} label="Voice input" onChange={onWant} />
       </div>
