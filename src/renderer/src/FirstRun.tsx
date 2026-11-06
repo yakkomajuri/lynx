@@ -18,6 +18,8 @@ import { bridge } from './api'
 import { instructions, newDraftName } from './AgentPanel'
 import { AgentMark } from './ComposerLine'
 import { beginOnboarding, FIRST_RUN_RULES, MANUAL, onboardingRules, onboardingSession, tellOnboarding, useOnboardingSessionId } from './onboarding'
+import { Keys } from './CommandBar'
+import { comboFor } from './keymap'
 import { Toggle } from './Page'
 import { useAgentSignIn } from './SignIn'
 import { WorkspaceIcon } from './WorkspaceIcon'
@@ -425,16 +427,24 @@ function WhatItDoes() {
 
 /** Whether to turn voice input on: a switch, only a wish until Continue (FirstRun), and the agent's message box with voice at work. */
 function VoiceStep({ wanted, onWant }: { wanted: boolean; onWant: (on: boolean) => void }) {
+  // Switched on, macOS asks for the microphone there and then, not the first time the user talks. Refused, the step says where to allow it.
+  const [micRefused, setMicRefused] = useState<string | null>(null)
+  const want = (on: boolean) => {
+    onWant(on)
+    setMicRefused(null)
+    if (on) void bridge.voice.askMic().catch((e) => setMicRefused(e instanceof Error ? e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : String(e)))
+  }
   return (
     <section className="fr-slide fr-anchored fr-voice-step">
       <h2 className="fr-in">Enable voice input?</h2>
       <div className="fr-voice-opt fr-in" style={{ '--d': 200 } as React.CSSProperties}>
-        <div className="fr-voice-opt-text" onClick={() => onWant(!wanted)}>
+        <div className="fr-voice-opt-text" onClick={() => want(!wanted)}>
           <span className="fr-voice-opt-name">Voice input</span>
           <small>Downloads a {FIRST_RUN_VOICE_SIZE} model in the background, ready in a few minutes.</small>
           <small>Configure voice input any time in Settings.</small>
+          {wanted && micRefused && <small className="fr-voice-opt-bad">{micRefused}</small>}
         </div>
-        <Toggle on={wanted} label="Voice input" onChange={onWant} />
+        <Toggle on={wanted} label="Voice input" onChange={want} />
       </div>
       <VoiceDemo />
     </section>
@@ -473,8 +483,11 @@ function VoiceDemo() {
               ))}
             </span>
             <span className={`fr-voice-field${said ? '' : ' empty'}`}>{said || 'Listening…'}</span>
-            <span className="sb-attach h-voice-toggle on">
+            <span className="sb-attach h-voice-toggle on fr-voice-mic">
               <Mic size={17} strokeWidth={1.7} />
+              <span className="fr-voice-tip" role="tooltip">
+                Voice mode <Keys combo={comboFor('voice')} />
+              </span>
             </span>
             <span className={`sb-send${said ? '' : ' off'}`}>
               <ArrowUp size={18} strokeWidth={2.2} />

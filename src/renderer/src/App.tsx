@@ -22,7 +22,7 @@ import { onboardingSession, useOnboardingConnections } from './onboarding'
 import { CreatedToasts, type Created } from './CreatedToast'
 import { FirstRun, firstRunDone } from './FirstRun'
 import { ArchivedView } from './Archived'
-import { CommandBar, Keys, titled, type Command } from './CommandBar'
+import { CommandBar, Keys, keys, titled, type Command } from './CommandBar'
 import { comboOf, sameCombo, type Combo } from '@kit/keys'
 import { comboFor, useShortcuts } from './keymap'
 import { ConnectorDialog, ConnectorsView, connectorIcon, type ConnectorPreset } from './Connectors'
@@ -213,6 +213,20 @@ export function App() {
     setToasts((t) => [...t.slice(-3), { id, tone, text }])
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), tone === 'bad' ? 7000 : 3500)
   }, [])
+  // Voice: a notice once the model voice runs on has come down (the first run starts it, and it takes a few
+  // minutes), saying how to start talking; and one when the download fails, which only Settings says otherwise.
+  const voiceWas = useRef<AppState['voice'] | null>(null)
+  useEffect(() => {
+    const v = state?.voice
+    const was = voiceWas.current
+    voiceWas.current = v ?? null
+    if (!v || !was) return
+    if (was.download && !v.download && v.enabled && v.installed.includes(v.model) && !was.installed.includes(v.model)) {
+      const combo = comboFor('voice')
+      toast(`Voice input is ready. Click the microphone in the agent panel${combo ? ` or press ${keys(combo)}` : ''} to talk.`, 'good')
+    }
+    if (v.error && v.error !== was.error) toast(v.error, 'bad')
+  }, [state?.voice, toast])
   // Messages queued for the agent go when their conversation is done, whether the panel is open or not.
   const queued = useAnyQueued()
   const queueError = useCallback((text: string) => toast(text, 'bad'), [toast])

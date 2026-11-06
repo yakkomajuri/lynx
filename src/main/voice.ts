@@ -182,14 +182,18 @@ export function makeVoice({ dataDir, outDir, onChange, onEvent }: { dataDir: str
     }))
 
   /** Before a session: voice mode is on, its model is here, and the microphone is allowed. */
-  const prepare = async () => {
-    if (!enabled) throw new Error('Voice mode is off. Turn it on in Settings, Voice.')
-    if (!installed(model)) throw new Error(download ? `${voiceModel(model).name} is still downloading` : `${voiceModel(model).name} is not downloaded. Download it in Settings, Voice.`)
+  /** Asks macOS for the microphone, when it has not been allowed yet; throws, saying where to allow it, when it is refused. Needs no model: the first run asks as soon as voice is switched on. */
+  const askMic = async () => {
     // Under test the microphone is a file Chromium plays (--use-fake-device-for-media-stream): macOS is not asked.
     const fake = app.commandLine.hasSwitch('use-fake-device-for-media-stream')
     if (process.platform === 'darwin' && !fake && systemPreferences.getMediaAccessStatus('microphone') !== 'granted' && !(await systemPreferences.askForMediaAccess('microphone')))
       // Started from a terminal (a dev build), macOS asks on the terminal's behalf, and the permission is the terminal's.
       throw new Error(app.isPackaged ? 'Lynx may not use the microphone. Allow it in System Settings, Privacy & Security, Microphone.' : 'The microphone is not allowed. This Lynx was started from a terminal, so macOS gives that permission to the terminal: allow your terminal app in System Settings, Privacy & Security, Microphone, then quit it and start Lynx again.')
+  }
+  const prepare = async () => {
+    if (!enabled) throw new Error('Voice mode is off. Turn it on in Settings, Voice.')
+    if (!installed(model)) throw new Error(download ? `${voiceModel(model).name} is still downloading` : `${voiceModel(model).name} is not downloaded. Download it in Settings, Voice.`)
+    await askMic()
   }
   /** A voice session begins: the model is loaded (the page holds what it hears meanwhile), and samples are taken from then on. */
   // Each session's number: a stop while the model loads is not undone when it is loaded.
@@ -257,5 +261,5 @@ export function makeVoice({ dataDir, outDir, onChange, onEvent }: { dataDir: str
     rmSync(join(root, `${m.id}.unpacking`), { recursive: true, force: true })
   }
 
-  return { state, set, install, remove, cancel: () => aborting?.abort(), prepare, start, stop, audio, reset, say, hush, dispose: () => (hush(), unload()) }
+  return { state, set, install, remove, cancel: () => aborting?.abort(), askMic, prepare, start, stop, audio, reset, say, hush, dispose: () => (hush(), unload()) }
 }

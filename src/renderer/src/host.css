@@ -2181,7 +2181,8 @@ button.h-chip[aria-pressed='true'] {
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 80;
+  /* Over everything, the first-run screen (200) included: a notice that comes then (voice ready) is still seen. */
+  z-index: 210;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -8250,7 +8251,8 @@ td.h-st-blank {
    voice at work (the app's own composer, drawn, not live; the listening wave sits in the box). */
 .fr-voice-demo {
   width: min(660px, 100%);
-  margin-top: 28px;
+  /* Room for the microphone's tooltip above the box. */
+  margin-top: 46px;
   text-align: left;
   user-select: none;
   cursor: default;
@@ -8337,6 +8339,47 @@ td.h-st-blank {
   color: var(--sb-muted);
   font-size: 15px;
   line-height: 1.5;
+}
+.fr-voice-opt small.fr-voice-opt-bad {
+  margin-top: 8px;
+  color: var(--sb-bad);
+}
+/* The demo's microphone says what it is and its shortcut, in a tooltip that stays up. */
+.fr-voice-mic {
+  position: relative;
+  overflow: visible;
+}
+.fr-voice-tip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: var(--sb-ink);
+  color: var(--sb-ink-text);
+  font: 500 12px/1 var(--sb-font);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.fr-voice-tip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top-color: var(--sb-ink);
+}
+.fr-voice-tip .h-kbd {
+  color: inherit;
+  opacity: 0.7;
+  background: none;
+  box-shadow: none;
+  padding: 0;
 }
 .fr-voice-opt .h-toggle {
   flex: none;

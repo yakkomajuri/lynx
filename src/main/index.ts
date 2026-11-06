@@ -451,6 +451,7 @@ async function main() {
   ipcMain.handle('sb:voice-remove', guard((_e, model: VoiceModelId) => voice.remove(model)))
   ipcMain.handle('sb:voice-cancel', guard(() => voice.cancel()))
   ipcMain.handle('sb:voice-prepare', guard(() => voice.prepare()))
+  ipcMain.handle('sb:voice-mic', guard(() => voice.askMic()))
   ipcMain.handle('sb:voice-start', guard(() => voice.start()))
   ipcMain.handle('sb:voice-stop', guard(() => voice.stop()))
   ipcMain.handle('sb:voice-reset', guard(() => voice.reset()))
