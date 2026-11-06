@@ -7962,7 +7962,10 @@ td.h-st-blank {
   gap: 24px;
   width: min(560px, 100%);
   margin-top: 30px;
+  padding: 18px 20px;
   box-sizing: border-box;
+  border: 1px solid var(--sb-line);
+  border-radius: 16px;
   text-align: left;
 }
 .fr-voice-opt-text {
