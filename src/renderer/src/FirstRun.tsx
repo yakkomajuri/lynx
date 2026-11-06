@@ -13,6 +13,7 @@ import { ConnectorIcon } from '@kit/toolviews'
 import { Modal as KitModal } from '@kit/ui'
 import { createPortal } from 'react-dom'
 import type { AppState } from '@shared/types'
+import { voiceModel } from '@shared/voice'
 import { bridge } from './api'
 import { instructions, newDraftName } from './AgentPanel'
 import { AgentMark } from './ComposerLine'
@@ -29,8 +30,10 @@ export const firstRunDone = () => !!localStorage.getItem(DONE) || !!bridge.skipF
 
 const STEPS = ['welcome', 'agents', 'what', 'voice', 'connect'] as const
 
-/** The speech model the voice step turns on: the most accurate, about 1.7 GB to download. */
-const FIRST_RUN_VOICE_MODEL = 'cohere'
+/** The speech model the voice step turns on: the balanced one, Settings' default too. */
+const FIRST_RUN_VOICE_MODEL = 'parakeet'
+/** Its download, as the switch says it: to the nearest 10 MB. */
+const FIRST_RUN_VOICE_SIZE = `${Math.round(voiceModel(FIRST_RUN_VOICE_MODEL).download / 1e7) * 10}MB`
 
 /** The two agents Lynx runs, and where each says how to install it. */
 const AGENTS = [
@@ -428,7 +431,7 @@ function VoiceStep({ wanted, onWant }: { wanted: boolean; onWant: (on: boolean) 
       <div className="fr-voice-opt fr-in" style={{ '--d': 200 } as React.CSSProperties}>
         <div className="fr-voice-opt-text" onClick={() => onWant(!wanted)}>
           <span className="fr-voice-opt-name">Voice input</span>
-          <small>Downloads a 1.7GB model in the background, ready in a few minutes.</small>
+          <small>Downloads a {FIRST_RUN_VOICE_SIZE} model in the background, ready in a few minutes.</small>
           <small>Configure voice input any time in Settings.</small>
         </div>
         <Toggle on={wanted} label="Voice input" onChange={onWant} />

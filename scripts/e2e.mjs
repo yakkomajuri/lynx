@@ -5358,7 +5358,7 @@ export default async function ({ cwd }) {
     await win.locator('.fr-voice-opt [role="switch"]').click()
     check('first run: switched on, voice is not on yet: that waits for Continue', (await win.locator('.fr-voice-opt [role="switch"]').getAttribute('aria-checked')) === 'true' && !(await win.evaluate(() => window.sb.state())).voice.enabled)
     await win.locator('.fr-voice-opt [role="switch"]').click()
-    check('first run: and the switch says what turning it on downloads', (await win.locator('.fr-voice-opt small').first().innerText()).startsWith('Downloads a 1.7GB model in the background') && JSON.stringify((await win.locator('.fr-foot .fr-acts .fr-btn').allInnerTexts()).map((t) => t.replace(/\s*↵\s*$/, '').trim())) === '["Back","Continue"]')
+    check('first run: and the switch says what turning it on downloads', (await win.locator('.fr-voice-opt small').first().innerText()).startsWith('Downloads a 480MB model in the background') && JSON.stringify((await win.locator('.fr-foot .fr-acts .fr-btn').allInnerTexts()).map((t) => t.replace(/\s*↵\s*$/, '').trim())) === '["Back","Continue"]')
     await win.waitForTimeout(800)
     await shot('firstrun-voice')
     await next().click()
