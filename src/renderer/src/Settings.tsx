@@ -661,11 +661,11 @@ export function VoiceSettingsView({ state, toast }: { state: AppState; toast: To
             <div className="h-bg-row">
               <div>
                 <strong>Send when I stop talking</strong>
-                <p className="h-hint">{v.autoSend !== false ? 'What you say goes to the agent once you pause. While the agent works it does not listen, and it listens again when the agent is done.' : 'What you say is written into the message box as you go, to read over and send with ↩ yourself.'}</p>
+                <p className="h-hint">{!!v.autoSend ? 'What you say goes to the agent once you pause. While the agent works it does not listen, and it listens again when the agent is done.' : 'What you say is written into the message box as you go, to read over and send with ↩ yourself.'}</p>
               </div>
-              <Toggle on={v.autoSend !== false} label="Send when I stop talking" onChange={(on) => void bridge.voice.set({ autoSend: on }).catch(fail)} />
+              <Toggle on={!!v.autoSend} label="Send when I stop talking" onChange={(on) => void bridge.voice.set({ autoSend: on }).catch(fail)} />
             </div>
-            {v.autoSend !== false && (
+            {!!v.autoSend && (
               <div className="h-bg-row h-voice-pause">
                 <div>
                   <strong>Pause before sending</strong>

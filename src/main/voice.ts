@@ -30,7 +30,8 @@ export function makeVoice({ dataDir, outDir, onChange, onEvent }: { dataDir: str
   })()
   let enabled = saved.enabled === true
   let speak = saved.speak === true
-  let autoSend = saved.autoSend !== false
+  // Off unless chosen: what is said is written into the message box, and the user sends it.
+  let autoSend = saved.autoSend === true
   let listenAway = saved.listenAway === true
   let pause = isVoicePause(saved.pause) ? saved.pause : DEFAULT_PAUSE
   /** The quiet that ends what was said: the one picked, or a short one when it is written in to send by hand. */

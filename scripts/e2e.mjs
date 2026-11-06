@@ -5002,6 +5002,10 @@ export default async function ({ cwd }) {
     // There is no setting for correcting what was heard: a small model does it, or, for the test agent, the names Lynx knows.
     check('no setting to turn correcting off', (await win.locator('.h-set .h-bg-row', { hasText: 'Correct what was heard' }).count()) === 0)
     check('Read replies aloud is off to start with', (await state()).voice.speak === false && (await win.locator('.h-set .h-toggle[aria-label="Read replies aloud"][aria-checked="false"]').count()) === 1)
+    // Sending by itself is off to start with: what is said is written in, to send by hand. The steps after want it on.
+    check('Send when I stop talking is off to start with', (await state()).voice.autoSend === false && (await win.locator('.h-set .h-toggle[aria-label="Send when I stop talking"][aria-checked="false"]').count()) === 1)
+    await win.click('.h-set .h-toggle[aria-label="Send when I stop talking"]')
+    await until('sending by itself', async () => (await state()).voice.autoSend === true, 5000)
     // How long a quiet ends what was said, while it sends by itself.
     const pauses = win.locator('.h-set .h-bg-row', { hasText: 'Pause before sending' })
     check('the pause before sending can be picked, 1.5 s to start with', (await pauses.locator('[role=tab]').allInnerTexts()).join() === '0.8 s,1 s,1.5 s,2 s,3 s' && (await pauses.locator('[role=tab][aria-selected=true]').innerText()) === '1.5 s', (await pauses.locator('[role=tab]').allInnerTexts()).join())
