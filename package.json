@@ -1,7 +1,7 @@
 {
   "name": "lynx",
   "productName": "Lynx",
-  "version": "0.1.31",
+  "version": "0.1.32",
   "description": "Workspaces made of custom UIs, MCP connectors and agents.",
   "license": "MIT",
   "private": true,
