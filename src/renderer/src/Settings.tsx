@@ -50,18 +50,18 @@ Calm and dense. Information first; no decoration that does not carry meaning.
 
 export type Section = 'marketplace' | 'tools' | 'schedules' | 'runs' | 'store' | 'connectors' | 'design' | 'appearance' | 'background' | 'voice' | 'usage' | 'shortcuts'
 export const SECTIONS: { id: Section; name: string; icon: ReactNode }[] = [
-  { id: 'marketplace', name: 'Marketplace', icon: <Globe size={17} /> },
   { id: 'connectors', name: 'Connectors', icon: <Icon name="plug" size={17} /> },
   { id: 'appearance', name: 'Appearance', icon: <SwatchBook size={16} strokeWidth={1.6} /> },
-  { id: 'design', name: 'Design system', icon: <Palette size={16} strokeWidth={1.6} /> },
-  { id: 'background', name: 'Background', icon: <Moon size={16} strokeWidth={1.6} /> },
+  { id: 'shortcuts', name: 'Shortcuts', icon: <Keyboard size={16} strokeWidth={1.6} /> },
   { id: 'voice', name: 'Voice', icon: <Mic size={16} strokeWidth={1.6} /> },
   { id: 'usage', name: 'Usage', icon: <Gauge size={16} strokeWidth={1.6} /> },
-  { id: 'shortcuts', name: 'Shortcuts', icon: <Keyboard size={16} strokeWidth={1.6} /> },
-  { id: 'tools', name: 'Tools', icon: <Icon name="wrench" size={17} /> },
+  { id: 'marketplace', name: 'Marketplace', icon: <Globe size={17} /> },
   { id: 'schedules', name: 'Schedules', icon: <Clock size={16} strokeWidth={1.6} /> },
+  { id: 'tools', name: 'Tools', icon: <Icon name="wrench" size={17} /> },
   { id: 'runs', name: 'Runs', icon: <History size={16} strokeWidth={1.6} /> },
   { id: 'store', name: 'Store', icon: <Database size={16} strokeWidth={1.6} /> },
+  { id: 'background', name: 'Background', icon: <Moon size={16} strokeWidth={1.6} /> },
+  { id: 'design', name: 'Design system', icon: <Palette size={16} strokeWidth={1.6} /> },
 ]
 
 export function SettingsDialog({ state, section, onSection, onClose, children }: { state: AppState; section: Section; onSection: (s: Section) => void; /** Puts settings away; the window is as it was under them. */ onClose: () => void; /** The open section. */ children: ReactNode }) {
@@ -281,7 +281,7 @@ export function AppearanceView({ state, toast }: { state: AppState; toast: Toast
             <span className="h-muted">{THEMES.find((t) => t.id === theme)?.name}</span>
           </div>
           <div className="h-settings">
-            <p className="h-hint">A theme colours what is Lynx's own: the window, Home, the agent, settings and menus. The workspaces you build keep their own look, so you can tell at a glance which is which. Light and dark follow the choice above.</p>
+            <p className="h-hint">A theme colours what is Lynx's own: the window, the agent, settings and menus. Workspaces, Onboarding included, keep their own look, so you can tell at a glance which is which. Light and dark follow the choice above.</p>
             <div className="h-themes" role="group" aria-label="Theme">
               {THEMES.map((t) => (
                 <button key={t.id} className={`h-theme${t.id === theme ? ' on' : ''}`} aria-pressed={t.id === theme} onClick={() => pick(t.id)}>
@@ -326,7 +326,7 @@ export function AppearanceView({ state, toast }: { state: AppState; toast: Toast
             <div className="h-themes h-layouts" role="group" aria-label="Workspaces">
               {WORKSPACE_PLACES.map((p) => (
                 <button key={p.id} className={`h-theme${p.id === layout.workspaces ? ' on' : ''}`} aria-pressed={p.id === layout.workspaces} data-place={p.id} onClick={() => p.id !== layout.workspaces && place({ workspaces: p.id })}>
-                  <LayoutPicture workspaces={p.id} agent={layout.agent} />
+                  <LayoutPicture workspaces={p.id} agent={layout.agent} focus="workspaces" />
                   <span className="h-theme-name">
                     {p.name}
                     {p.id === layout.workspaces && <Check size={14} strokeWidth={2.2} />}
@@ -339,7 +339,7 @@ export function AppearanceView({ state, toast }: { state: AppState; toast: Toast
             <div className="h-themes h-layouts" role="group" aria-label="Agent">
               {AGENT_PLACES.map((p) => (
                 <button key={p.id} className={`h-theme${p.id === layout.agent ? ' on' : ''}`} aria-pressed={p.id === layout.agent} data-place={p.id} onClick={() => p.id !== layout.agent && place({ agent: p.id })}>
-                  <LayoutPicture workspaces={layout.workspaces} agent={p.id} />
+                  <LayoutPicture workspaces={layout.workspaces} agent={p.id} focus="agent" />
                   <span className="h-theme-name">
                     {p.name}
                     {p.id === layout.agent && <Check size={14} strokeWidth={2.2} />}
@@ -355,53 +355,128 @@ export function AppearanceView({ state, toast }: { state: AppState; toast: Toast
   )
 }
 
-/** The window in small, laid out as a choice would have it: the title bar or a sidebar, the agent beside the workspace or floating over it. */
-function LayoutPicture({ workspaces, agent }: LayoutSettings) {
-  return (
-    <span className={`h-theme-view h-layout-view ${workspaces} ${agent}`} aria-hidden>
-      <span className="h-theme-bar">
+/** A row in the picture: an icon and a label, `w` wide (a share of the row). */
+const LpItem = ({ w, on, cls = '' }: { w: number; on?: boolean; cls?: string }) => (
+  <span className={`h-lp-item${on ? ' on' : ''}${cls ? ` ${cls}` : ''}`}>
+    <i className="ic" />
+    <i className="tx" style={{ width: `${w}%` }} />
+  </span>
+)
+/** A button in the picture: an outline with an icon and a label. */
+const LpButton = ({ cls = '' }: { cls?: string }) => (
+  <span className={`h-lp-btn${cls ? ` ${cls}` : ''}`}>
+    <i className="ic" />
+    <i className="tx" />
+  </span>
+)
+
+/**
+ * The window in small, laid out as a choice would have it, drawn after the real one: the title bar with
+ * the workspace's name and its buttons; the workspaces as a sidebar (search, the list with the open one
+ * picked, and running agents, notifications and settings at its foot) or as the list that drops from the
+ * name; the agent as a panel beside the workspace, or floating over it above the bar along the bottom.
+ * The workspace is the onboarding one, a header over a list. What the row of choices is about (`focus`)
+ * is in the accent colour; the rest is grey.
+ */
+function LayoutPicture({ workspaces, agent, focus }: LayoutSettings & { focus: 'workspaces' | 'agent' }) {
+  const ws = focus === 'workspaces' ? ' fx' : ''
+  const ag = focus === 'agent' ? ' fx' : ''
+  const chat = (
+    <>
+      <span className="h-lp-tabs">
+        <i className="on" />
         <i />
-        <i />
-        <i />
-        {workspaces === 'top' && <u />}
-        {agent === 'panel' && <b />}
       </span>
-      <span className="h-theme-body">
-        {workspaces === 'side' && (
-          <span className="h-layout-side">
-            <i />
-            <i />
-            <i />
-            <i />
-            <em />
-          </span>
-        )}
-        <span className="h-layout-main">
-          <span className="h-layout-row">
-            <span className="h-theme-ws">
-              <i />
-              <i />
-              <i />
-            </span>
-            {agent === 'panel' && (
-              <span className="h-theme-agent">
-                <i />
-                <i />
-                <b />
-              </span>
-            )}
-          </span>
-          {agent === 'float' && (
+      <span className="h-lp-chat">
+        <span className="h-lp-bubble">
+          <i />
+        </span>
+        <i className="h-lp-text" style={{ width: '88%' }} />
+        <i className="h-lp-text" style={{ width: '70%' }} />
+        <i className="h-lp-text" style={{ width: '80%' }} />
+      </span>
+      <span className="h-lp-input">
+        <i />
+        <b />
+      </span>
+    </>
+  )
+  return (
+    <span className={`h-lp ${workspaces} ${agent}`} aria-hidden>
+      <span className="h-lp-bar">
+        <span className={`h-lp-title${workspaces === 'top' ? ws : ''}`}>
+          <i className="ic" />
+          <i className="tx" />
+          {workspaces === 'top' && <em />}
+        </span>
+        <span className="h-lp-acts">
+          <LpButton />
+          {agent === 'panel' && <LpButton cls={`agent${ag}`} />}
+          {workspaces === 'top' && (
             <>
-              <span className="h-theme-agent h-layout-float">
-                <i />
-                <b />
-              </span>
-              <span className="h-layout-line" />
+              <i className="h-lp-icon" />
+              <i className="h-lp-icon" />
+              <i className="h-lp-icon" />
             </>
           )}
         </span>
       </span>
+      <span className="h-lp-body">
+        {workspaces === 'side' && (
+          <span className={`h-lp-side${ws}`}>
+            <LpItem w={55} cls="search" />
+            <i className="h-lp-label" />
+            <LpItem w={70} on />
+            <LpItem w={55} />
+            <LpItem w={62} />
+            <span className="h-lp-side-foot">
+              <LpItem w={66} />
+              <LpItem w={58} />
+              <LpItem w={48} />
+            </span>
+          </span>
+        )}
+        <span className="h-lp-main">
+          <span className="h-lp-row">
+            <span className="h-lp-ws">
+              <span className="h-lp-head">
+                <i className="logo" />
+                <span>
+                  <i className="h1" />
+                  <i className="sub" />
+                </span>
+              </span>
+              <span className="h-lp-list">
+                {[64, 52, 58].map((w, n) => (
+                  <span key={n} className="h-lp-li">
+                    <i className="num" />
+                    <i className="tx" style={{ width: `${w}%` }} />
+                    <i className="more" />
+                  </span>
+                ))}
+              </span>
+            </span>
+            {agent === 'panel' && <span className={`h-lp-agent${ag}`}>{chat}</span>}
+          </span>
+          {agent === 'float' && (
+            <>
+              <span className={`h-lp-agent float${ag}`}>{chat}</span>
+              <span className="h-lp-foot">
+                <LpButton cls={`agent${ag}`} />
+                <i className="h-lp-icon" />
+              </span>
+            </>
+          )}
+        </span>
+      </span>
+      {workspaces === 'top' && focus === 'workspaces' && (
+        <span className="h-lp-menu fx">
+          <LpItem w={70} on />
+          <LpItem w={55} />
+          <LpItem w={62} />
+          <LpItem w={48} cls="new" />
+        </span>
+      )}
     </span>
   )
 }
@@ -586,11 +661,11 @@ export function VoiceSettingsView({ state, toast }: { state: AppState; toast: To
             <div className="h-bg-row">
               <div>
                 <strong>Send when I stop talking</strong>
-                <p className="h-hint">{v.autoSend !== false ? 'What you say goes to the agent once you pause. While the agent works it does not listen, and it listens again when the agent is done.' : 'What you say is written into the message box as you go, to read over and send with ↩ yourself.'}</p>
+                <p className="h-hint">{!!v.autoSend ? 'What you say goes to the agent once you pause. While the agent works it does not listen, and it listens again when the agent is done.' : 'What you say is written into the message box as you go, to read over and send with ↩ yourself.'}</p>
               </div>
-              <Toggle on={v.autoSend !== false} label="Send when I stop talking" onChange={(on) => void bridge.voice.set({ autoSend: on }).catch(fail)} />
+              <Toggle on={!!v.autoSend} label="Send when I stop talking" onChange={(on) => void bridge.voice.set({ autoSend: on }).catch(fail)} />
             </div>
-            {v.autoSend !== false && (
+            {!!v.autoSend && (
               <div className="h-bg-row h-voice-pause">
                 <div>
                   <strong>Pause before sending</strong>

@@ -4,7 +4,6 @@
 // before stays on screen; once it is up it takes that one's place, and the old one fades out over it.
 import { useEffect, useRef, useState } from 'react'
 import { onAppChange } from '@kit/core'
-import type { ThemeId } from '@shared/themes'
 import { bridge, stageFile } from './api'
 import { boundCombos, onShortcuts } from './keymap'
 
@@ -52,7 +51,7 @@ export interface FrameHandle {
   update: () => void
 }
 
-export function Frame({ workspace, version, theme, mayHold, pinned, onHeld, onPost, onRoute, handle }: { workspace: string; version: number; /** The app's theme, for the one workspace that wears it: Home. */ theme?: ThemeId; /** Whether a new version may wait while the user is busy in the frame; not while the keyboard is in the agent panel. */ mayHold: boolean; /** A new version waits whatever else: Point is on. */ pinned: boolean; /** A new version waits (its number), or none does (null). */ onHeld?: (version: number | null) => void; onPost: (type: string, payload: Record<string, any>) => void; onRoute?: (path: string, above: string[]) => void; handle?: { current: FrameHandle | null } }) {
+export function Frame({ workspace, version, mayHold, pinned, onHeld, onPost, onRoute, handle }: { workspace: string; version: number; /** Whether a new version may wait while the user is busy in the frame; not while the keyboard is in the agent panel. */ mayHold: boolean; /** A new version waits whatever else: Point is on. */ pinned: boolean; /** A new version waits (its number), or none does (null). */ onHeld?: (version: number | null) => void; onPost: (type: string, payload: Record<string, any>) => void; onRoute?: (path: string, above: string[]) => void; handle?: { current: FrameHandle | null } }) {
   const [pages, setPages] = useState<Page[]>(() => [{ key: 0, src: src(workspace, version), phase: 'shown' }])
   const els = useRef(new Map<number, HTMLIFrameElement>())
   const keys = useRef(0)
@@ -201,10 +200,6 @@ export function Frame({ workspace, version, theme, mayHold, pinned, onHeld, onPo
   post.current = onPost
   const route = useRef(onRoute)
   route.current = onRoute
-  const themed = useRef(theme)
-  themed.current = theme
-  const sendTheme = (win = shownEl()?.contentWindow) => themed.current && win?.postMessage({ sb: 1, type: 'theme', theme: themed.current }, '*')
-  useEffect(() => void [...els.current.values()].forEach((el) => sendTheme(el.contentWindow)), [theme])
   // The keys the frame hands over to the window rather than keeping: every shortcut's.
   const sendShortcuts = (win = shownEl()?.contentWindow) => win?.postMessage({ sb: 1, type: 'shortcuts', combos: boundCombos() }, '*')
   if (handle) handle.current = { send: (type, payload = {}) => shownEl()?.contentWindow?.postMessage({ sb: 1, type, ...payload }, '*'), update: () => typeof heldRef.current === 'number' && load(heldRef.current, true) }
@@ -294,8 +289,7 @@ export function Frame({ workspace, version, theme, mayHold, pinned, onHeld, onPo
       else if (m.type === 'ready' && !shown) {
         // A crash while it renders comes after this, and is its own.
         void bridge.runtimeError({ workspace, error: null })
-        // Dressed before it is seen: Home's theme, and the keys it hands over.
-        sendTheme(win)
+        // Dressed before it is seen: the keys it hands over.
         sendShortcuts(win)
         setTimeout(() => void settle(key), SETTLE_MS)
       } else if (m.type === 'ready') {
@@ -303,7 +297,6 @@ export function Frame({ workspace, version, theme, mayHold, pinned, onHeld, onPo
         // A fresh page is the newest version: nothing waits.
         reportHeld(null)
         void bridge.runtimeError({ workspace, error: null })
-        sendTheme()
         sendShortcuts()
         win.postMessage({ sb: 1, type: 'shown' }, '*')
         post.current('ready', m)
@@ -342,7 +335,7 @@ export function Frame({ workspace, version, theme, mayHold, pinned, onHeld, onPo
         <iframe
           key={p.key}
           ref={(el) => void (el ? els.current.set(p.key, el) : els.current.delete(p.key))}
-          className={`${p.phase === 'shown' ? 'h-frame' : `h-ghost ${p.phase}`}${theme ? ' native' : ''}`}
+          className={`${p.phase === 'shown' ? 'h-frame' : `h-ghost ${p.phase}`}`}
           style={p.rect}
           // Out of sight it cannot be clicked or tabbed to (its code can still take the keyboard: see `keep`).
           inert={p.phase !== 'shown'}

@@ -886,7 +886,7 @@ export const AgentPanel = forwardRef<AgentPanelHandle, { /** Whether the keyboar
         speaks: () => !!live.current.speak,
         present: () => document.hasFocus() && live.current.shown,
         listensAway: () => !!live.current.state.voice?.listenAway,
-        autoSends: () => live.current.state.voice?.autoSend !== false,
+        autoSends: () => live.current.state.voice?.autoSend === true,
         dictate: (text) => live.current.dictate(text),
         waiting: () => !!live.current.dictated,
         clear: () => live.current.clear(),
@@ -1206,7 +1206,7 @@ export const AgentPanel = forwardRef<AgentPanelHandle, { /** Whether the keyboar
           )}
           {!listing && (
             <div className="h-compose" onSelect={onSelect}>
-              <VoiceBar dictating={state.voice?.autoSend === false} />
+              <VoiceBar dictating={state.voice?.autoSend !== true} />
               {mention && (
                 <div className="h-pop start h-mention" role="listbox" aria-label="Mention">
                   {(['workspace', 'connector'] as const).map((kind) => {

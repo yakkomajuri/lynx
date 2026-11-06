@@ -291,12 +291,6 @@ button.h-crumb:hover {
   flex: 1;
   min-width: 0;
 }
-/* Home is the app's own, and wears its theme. */
-.h-frame.native,
-.h-ghost.native {
-  color-scheme: inherit;
-  background: var(--sb-bg);
-}
 /* A workspace's next version loads unseen over the one on screen; once up, it takes that one's place
    and the old one fades out over it (Frame.tsx places both). */
 .h-ghost {
@@ -2187,7 +2181,8 @@ button.h-chip[aria-pressed='true'] {
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 80;
+  /* Over everything, the first-run screen (200) included: a notice that comes then (voice ready) is still seen. */
+  z-index: 210;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -6632,76 +6627,424 @@ td.h-st-blank {
 .h-layouts {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
-.h-layout-view .h-theme-bar u {
-  width: 34px;
-  height: 7px;
-  margin-left: 6px;
-  border-radius: 4px;
-  background: var(--sb-faint);
-  opacity: 0.6;
+/* The window in small (LayoutPicture): grey, but for what the row of choices is about, in the accent colour (.fx).
+   Square-ish skeletons after the real window: icons are small squares, words are bars. */
+.h-lp {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 132px;
+  margin-bottom: 8px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--sb-rail);
+  box-shadow: inset 0 0 0 1px var(--sb-line);
+  --lp-grey: color-mix(in srgb, var(--sb-faint) 38%, transparent);
+  --lp-ink: color-mix(in srgb, var(--sb-text) 55%, transparent);
+  --lp-fx: var(--sb-accent);
+  --lp-fx-soft: color-mix(in srgb, var(--sb-accent) 20%, transparent);
+  --lp-fx-mid: color-mix(in srgb, var(--sb-accent) 50%, transparent);
 }
-.h-layout-view.top .h-theme-bar b,
-.h-layout-view.side .h-theme-bar b {
+.h-lp i,
+.h-lp b,
+.h-lp em {
+  display: block;
+  flex: none;
+}
+/* An icon and a label: a row of the sidebar or the menu, a button, the name. */
+.h-lp-item,
+.h-lp-btn,
+.h-lp-title {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.h-lp-item {
+  height: 8px;
+  padding: 0 3px;
+  border-radius: 2px;
+}
+.h-lp .ic {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--lp-grey);
+}
+.h-lp .tx {
+  height: 3px;
+  border-radius: 1px;
+  background: var(--lp-grey);
+}
+.h-lp-item.on {
+  background: color-mix(in srgb, var(--sb-text) 9%, transparent);
+}
+.h-lp-item.on .ic,
+.h-lp-item.on .tx {
+  background: var(--lp-ink);
+}
+/* The title bar: the workspace's name (with the switcher's chevron when the list drops from it), and its buttons. */
+.h-lp-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  flex: none;
+  padding: 0 6px;
+}
+.h-lp.side .h-lp-bar {
+  /* The name sits over the workspace, past the sidebar. */
+  padding-left: calc(26% + 8px);
+}
+.h-lp-title {
+  padding: 2px 3px;
+  border-radius: 2px;
+}
+.h-lp-title .ic {
+  background: color-mix(in srgb, #8b5cf6 70%, transparent);
+}
+.h-lp-title .tx {
+  width: 30px;
+  height: 4px;
+  background: var(--lp-ink);
+}
+.h-lp-title em {
+  width: 3px;
+  height: 5px;
+  border: solid var(--lp-grey);
+  border-width: 1px 0;
+}
+.h-lp-title.fx {
+  background: var(--lp-fx-soft);
+  box-shadow: 0 0 0 1px var(--lp-fx);
+}
+.h-lp-title.fx .tx {
+  background: var(--lp-fx);
+}
+.h-lp-acts {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
-.h-layout-side {
-  width: 22%;
+.h-lp-btn {
+  height: 9px;
+  padding: 0 3px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--lp-grey);
+}
+.h-lp-btn .ic {
+  width: 3px;
+  height: 3px;
+}
+.h-lp-btn .tx {
+  width: 9px;
+  height: 2px;
+}
+.h-lp-btn.fx {
+  background: var(--lp-fx);
+  box-shadow: none;
+}
+.h-lp-btn.fx .ic,
+.h-lp-btn.fx .tx {
+  background: var(--sb-ink-text);
+}
+.h-lp-icon {
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  box-shadow: inset 0 0 0 1px var(--lp-grey);
+}
+.h-lp-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 3px;
+  padding: 0 5px 5px;
+}
+/* The sidebar: search, the workspaces with the open one picked, and running agents, notifications and settings at its foot. */
+.h-lp-side {
+  width: 26%;
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  padding: 2px 2px 0;
-}
-.h-layout-side i {
-  height: 5px;
+  gap: 2px;
+  padding: 2px 1px 1px;
   border-radius: 3px;
-  background: var(--sb-faint);
-  opacity: 0.5;
 }
-.h-layout-side i:nth-child(1) {
-  background: var(--sb-ink);
-  opacity: 0.35;
+.h-lp-side .search {
+  margin-bottom: 3px;
 }
-.h-layout-side i:nth-child(3) {
-  width: 70%;
+.h-lp-label {
+  width: 30%;
+  height: 2px;
+  margin: 0 3px 1px;
+  border-radius: 1px;
+  background: var(--lp-grey);
+  opacity: 0.7;
 }
-.h-layout-side em {
+.h-lp-side-foot {
   margin-top: auto;
-  width: 60%;
-  height: 5px;
-  border-radius: 3px;
-  background: var(--sb-faint);
-  opacity: 0.5;
+  padding-top: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-top: 1px solid var(--sb-line);
 }
-.h-layout-main {
+.h-lp-side.fx {
+  background: var(--lp-fx-soft);
+  box-shadow: inset 0 0 0 1px var(--lp-fx);
+}
+.h-lp-side.fx .ic,
+.h-lp-side.fx .tx,
+.h-lp-side.fx .h-lp-label {
+  background: var(--lp-fx-mid);
+}
+.h-lp-side.fx .h-lp-item.on {
+  background: var(--lp-fx-soft);
+}
+.h-lp-side.fx .h-lp-item.on .ic,
+.h-lp-side.fx .h-lp-item.on .tx {
+  background: var(--lp-fx);
+}
+.h-lp-main {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  position: relative;
+  gap: 2px;
 }
-.h-layout-row {
+.h-lp-row {
   flex: 1;
   min-height: 0;
   display: flex;
-  gap: 5px;
+  gap: 3px;
 }
-.h-theme-agent.h-layout-float {
-  position: absolute;
-  right: 6px;
-  bottom: 14px;
-  width: 42%;
-  height: 58%;
-  box-shadow: 0 0 0 1px var(--sb-line), 0 4px 12px rgba(0, 0, 0, 0.14);
+/* The workspace, plain in every theme as the real ones are: the onboarding one, a header over a list. */
+.h-lp-ws {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 8px 0;
+  border-radius: 3px;
+  overflow: hidden;
+  color-scheme: light dark;
+  background: light-dark(#f6f6f7, #1b1b1c);
+  box-shadow: 0 0 0 1px light-dark(rgba(0, 0, 0, 0.09), rgba(255, 255, 255, 0.1));
+  --lp-ws-line: light-dark(rgba(0, 0, 0, 0.13), rgba(255, 255, 255, 0.16));
+  --lp-ws-ink: light-dark(rgba(0, 0, 0, 0.6), rgba(255, 255, 255, 0.62));
 }
-.h-layout-line {
+.h-lp-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 82%;
+  max-width: 120px;
+}
+.h-lp-head > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.h-lp-head .logo {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: light-dark(#111, #e8e8e8);
+}
+.h-lp-head .h1 {
+  width: 85%;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--lp-ws-ink);
+}
+.h-lp-head .sub {
+  width: 60%;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--lp-ws-line);
+}
+.h-lp-list {
+  width: 82%;
+  max-width: 120px;
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 3px;
+  background: light-dark(#ffffff, #242425);
+  box-shadow: 0 0 0 1px var(--lp-ws-line);
+}
+.h-lp-li {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 11px;
+  padding: 0 4px;
+}
+.h-lp-li + .h-lp-li {
+  border-top: 1px solid var(--lp-ws-line);
+}
+.h-lp-li .num {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  box-shadow: inset 0 0 0 1px var(--lp-ws-line);
+}
+.h-lp-li .tx {
+  background: var(--lp-ws-ink);
+  opacity: 0.55;
+}
+.h-lp-li .more {
+  margin-left: auto;
+  width: 8px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--lp-ws-line);
+}
+/* The agent: its tabs, a conversation (the user's message, the reply), and the message box with Send. */
+.h-lp-agent {
+  width: 34%;
   flex: none;
-  height: 6px;
-  margin: 0 18%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 4px 4px;
+  box-sizing: border-box;
+  border-radius: 3px;
+  background: var(--sb-bg);
+  box-shadow: 0 0 0 1px var(--sb-line);
+}
+.h-lp-agent.float {
+  position: absolute;
+  right: 5px;
+  bottom: 15px;
+  width: 40%;
+  height: 72%;
+  box-shadow: 0 0 0 1px var(--sb-line), 0 4px 12px rgba(0, 0, 0, 0.16);
+}
+.h-lp-tabs {
+  display: flex;
+  gap: 2px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--sb-line);
+}
+.h-lp-tabs i {
+  width: 16px;
+  height: 5px;
+  border-radius: 1px;
+  background: var(--lp-grey);
+  opacity: 0.6;
+}
+.h-lp-tabs i.on {
+  opacity: 1;
+  background: color-mix(in srgb, var(--sb-text) 18%, transparent);
+}
+.h-lp-chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 3px;
+}
+.h-lp-bubble {
+  align-self: flex-end;
+  width: 60%;
+  padding: 2px 3px;
+  margin-bottom: 2px;
+  border-radius: 2px;
+  background: var(--sb-bubble);
+}
+.h-lp-bubble i {
+  height: 3px;
+  border-radius: 1px;
+  background: var(--lp-grey);
+}
+.h-lp-text {
+  height: 3px;
+  border-radius: 1px;
+  background: var(--lp-grey);
+}
+.h-lp-input {
+  display: flex;
+  align-items: center;
+  height: 11px;
+  padding: 0 2px 0 4px;
   border-radius: 3px;
   background: var(--sb-surface);
   box-shadow: 0 0 0 1px var(--sb-line-strong);
+}
+.h-lp-input i {
+  width: 45%;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--lp-grey);
+}
+.h-lp-input b {
+  margin-left: auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--sb-ink);
+  opacity: 0.8;
+}
+.h-lp-agent.fx {
+  box-shadow: 0 0 0 1.5px var(--lp-fx), 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.h-lp-agent.fx .h-lp-bubble {
+  background: var(--lp-fx-soft);
+}
+.h-lp-agent.fx .h-lp-tabs i.on,
+.h-lp-agent.fx .h-lp-input b {
+  background: var(--lp-fx);
+  opacity: 1;
+}
+.h-lp-agent.fx .h-lp-input {
+  box-shadow: 0 0 0 1px var(--lp-fx);
+}
+/* The bar along the bottom with the floating agent: its button and History at the right. */
+.h-lp-foot {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  height: 11px;
+  padding-right: 1px;
+}
+/* The list that drops from the workspace's name, in the title bar. */
+.h-lp-menu {
+  position: absolute;
+  top: 18px;
+  left: 5px;
+  width: 32%;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px;
+  border-radius: 3px;
+  background: var(--sb-surface);
+  box-shadow: 0 0 0 1.5px var(--lp-fx), 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+.h-lp-menu .ic,
+.h-lp-menu .tx {
+  background: var(--lp-fx-mid);
+}
+.h-lp-menu .h-lp-item.on {
+  background: var(--lp-fx-soft);
+}
+.h-lp-menu .h-lp-item.on .ic,
+.h-lp-menu .h-lp-item.on .tx {
+  background: var(--lp-fx);
+}
+.h-lp-menu .h-lp-item.new {
+  margin-top: 2px;
+  padding-top: 0;
+  border-top: 1px solid var(--sb-line);
+  border-radius: 0;
 }
 
 /* The list of workspaces as a sidebar (Sidebar.tsx), when Appearance puts it there. Its foot has the agents
@@ -7193,27 +7536,14 @@ td.h-st-blank {
 }
 
 /* The first-run screen (FirstRun.tsx): over the whole window until a new install is set up. Each
-   step's lines rise out of a blur one after another; a faint grid drifts behind them. */
+   step's lines rise out of a blur one after another. In dark mode it sits darker than the app. */
 .fr {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: var(--sb-bg);
+  --fr-bg: color-mix(in oklab, var(--sb-bg), #000 calc(var(--sb-dark, 0) * 28%));
+  background: var(--fr-bg);
   color: var(--sb-text);
-}
-.fr::before {
-  content: '';
-  position: absolute;
-  inset: -40px;
-  background-image: radial-gradient(var(--sb-line-strong) 1px, transparent 1.2px);
-  background-size: 22px 22px;
-  mask-image: radial-gradient(ellipse at 50% 40%, #000 10%, transparent 70%);
-  opacity: 0.5;
-  pointer-events: none;
-  animation: fr-drift 40s linear infinite;
-}
-@keyframes fr-drift {
-  to { transform: translate(22px, 22px); }
 }
 /* The screen's words can be selected, with the text cursor over them; the rest of the app keeps selection off. */
 .fr :is(h1, h2, p, li, .fr-status, .fr-agent-name, .fr-agent-sub, .fr-video-cap, .fr-step) {
@@ -7366,8 +7696,9 @@ td.h-st-blank {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 18px 24px 22px;
-  background: linear-gradient(to top, var(--sb-bg) 55%, transparent);
+  /* In from the edges and up off the bottom, where the eye finds them. Still under the slides' 112px bottom padding. */
+  padding: 18px clamp(28px, 7.5vw, 96px) 52px;
+  background: var(--fr-bg);
   -webkit-app-region: no-drag;
 }
 .fr-dots {
@@ -7885,6 +8216,14 @@ td.h-st-blank {
 .fr-modal small.bad {
   color: var(--sb-bad);
 }
+.fr-other {
+  margin: 14px 0 0;
+  color: var(--sb-faint);
+  font-size: 13px;
+}
+.fr-other .fr-link {
+  font-size: inherit;
+}
 .fr-link {
   align-self: flex-start;
   padding: 0;
@@ -7910,11 +8249,151 @@ td.h-st-blank {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fr *,
-  .fr::before {
+  .fr * {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+/* The voice step: a switch with what turning it on means, and under it the agent's message box with
+   voice at work (the app's own composer, drawn, not live; the listening wave sits in the box). */
+.fr-voice-demo {
+  width: min(660px, 100%);
+  /* Room for the microphone's tooltip above the box. */
+  margin-top: 46px;
+  text-align: left;
+  user-select: none;
+  cursor: default;
+}
+.fr-voice-demo .sb-composer {
+  max-width: none;
+  padding: 0;
+}
+.fr-voice-demo .sb-composer-row {
+  align-items: center;
+}
+.fr-voice-demo .sb-attach,
+.fr-voice-demo .sb-send {
+  cursor: default;
+}
+.fr-voice-demo .sb-send.off {
+  opacity: 0.25;
+}
+.fr-voice-wave {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 16px;
+  margin: 0 2px 0 6px;
+}
+.fr-voice-wave i {
+  width: 2px;
+  height: 16px;
+  border-radius: 1px;
+  background: var(--sb-accent);
+  transform: scaleY(0.25);
+  animation: fr-voice-wave 0.9s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.13s);
+}
+@keyframes fr-voice-wave {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.fr-voice-field {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 6px;
+  color: var(--sb-text);
+  font: 15.5px/1.5 var(--sb-font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fr-voice-field.empty {
+  color: var(--sb-faint);
+}
+.fr-voice-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  width: min(660px, 100%);
+  margin-top: 30px;
+  padding: 18px 20px;
+  box-sizing: border-box;
+  border: 1px solid var(--sb-line);
+  border-radius: 16px;
+  text-align: left;
+}
+.fr-voice-opt-text {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+.fr-voice-opt-name {
+  display: block;
+  font-size: 18px;
+  font-weight: 550;
+  letter-spacing: -0.005em;
+}
+.fr-voice-opt small {
+  display: block;
+  margin-top: 5px;
+  color: var(--sb-muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.fr-voice-opt small.fr-voice-opt-bad {
+  margin-top: 8px;
+  color: var(--sb-bad);
+}
+/* The demo's microphone says what it is and its shortcut, in a tooltip that stays up. */
+.fr-voice-mic {
+  position: relative;
+  overflow: visible;
+}
+.fr-voice-tip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: var(--sb-ink);
+  color: var(--sb-ink-text);
+  font: 500 12px/1 var(--sb-font);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.fr-voice-tip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top-color: var(--sb-ink);
+}
+.fr-voice-tip .h-kbd {
+  color: inherit;
+  opacity: 0.7;
+  background: none;
+  box-shadow: none;
+  padding: 0;
+}
+.fr-voice-opt .h-toggle {
+  flex: none;
+  margin-top: 1px;
+  /* The settings switch, a size up to sit with the larger words. */
+  zoom: 1.4;
 }
 
 /* The first run's last step: workspaces being made from templates, a line at a time, in the middle. */

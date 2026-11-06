@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('sb', {
     remove: (model: string) => ipcRenderer.invoke('sb:voice-remove', model),
     cancel: () => ipcRenderer.invoke('sb:voice-cancel'),
     prepare: () => ipcRenderer.invoke('sb:voice-prepare'),
+    askMic: () => ipcRenderer.invoke('sb:voice-mic'),
     start: () => ipcRenderer.invoke('sb:voice-start'),
     stop: () => ipcRenderer.invoke('sb:voice-stop'),
     reset: () => ipcRenderer.invoke('sb:voice-reset'),

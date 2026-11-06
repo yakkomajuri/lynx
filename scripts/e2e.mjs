@@ -1999,7 +1999,7 @@ export default function App() {
   }
 
   if (want('theme')) {
-    // ── themes: the app's own pages wear one, Home with them; any other workspace stays plain
+    // ── themes: the app's own pages wear one; every workspace, Home included, stays plain
     const rail = () => win.evaluate(() => getComputedStyle(document.querySelector('.h-main')).backgroundColor)
     const inFrame = async (name) => {
       const f = await until(`${name}'s frame`, () => win.frames().find((f) => f.url().startsWith(`sbw://${name}/`)), 30000)
@@ -2035,17 +2035,12 @@ export default function App() {
     check('themes: its frame is plain too', (await win.evaluate(() => getComputedStyle(document.querySelector('.h-frame')).backgroundColor)) === (dark ? 'rgb(33, 33, 33)' : 'rgb(255, 255, 255)'))
     await shot('theme-ink-workspace')
     if (home) {
+      // Home (Onboarding) is a workspace like any other: plain, light or dark as the system is, so it stands apart from the app around it.
       await ok('app', 'workspace_open', { workspace: home.id })
       const h = await inFrame(home.id)
-      await until('home in ink', async () => (await look(h)).theme === 'ink', 5000).catch(() => {})
-      check('themes: Home wears the theme, dark in light mode too', (await look(h)).theme === 'ink' && (await look(h)).bg === '#161617' && (await h.evaluate(() => getComputedStyle(document.documentElement).colorScheme)) === 'dark', JSON.stringify(await look(h)))
+      check('themes: Home does not wear the theme either', (await look(h)).theme === null && (await look(h)).bg === plain.bg && (await look(h)).dark === dark, JSON.stringify(await look(h)))
+      check('themes: and its frame is plain', (await win.evaluate(() => getComputedStyle(document.querySelector('.h-frame')).backgroundColor)) === (dark ? 'rgb(33, 33, 33)' : 'rgb(255, 255, 255)'))
       await shot('theme-ink-home')
-      // Changed while Home is on screen: it follows without loading again.
-      await h.evaluate(() => (window.__same = true))
-      await ok('app', 'theme_set', { theme: 'slate' })
-      await until('home in slate', async () => (await look(h)).theme === 'slate', 5000).catch(() => {})
-      check('themes: Home follows a change without loading again', (await look(h)).theme === 'slate' && (await h.evaluate(() => window.__same)) === true, JSON.stringify(await look(h)))
-      await shot('theme-slate-home')
     }
     await ok('app', 'theme_set', { theme: 'slate' })
     await ok('app', 'workspace_open', { workspace: mine.id })
@@ -2053,7 +2048,8 @@ export default function App() {
     await win.click('.sb-btn:has-text("Agent")').catch(() => {})
     await shot('theme-slate-workspace')
     // Edited by hand, and a theme this version does not have.
-    writeFileSync(join(data, 'settings.json'), JSON.stringify({ theme: 'sand' }))
+    // Only the theme is edited: the layout stays as written (the title bar the steps after expect), not the new-install default.
+    writeFileSync(join(data, 'settings.json'), JSON.stringify({ ...JSON.parse(readFileSync(join(data, 'settings.json'), 'utf8')), theme: 'sand' }))
     await until('theme follows the file', async () => (await state()).settings.theme === 'sand', 5000).catch(() => {})
     check('themes: a change made in the file shows in the window', (await win.evaluate(() => document.documentElement.dataset.sbTheme)) === 'sand')
     check('themes: an unknown one is refused', /No theme named/.test((await call('app', 'theme_set', { theme: 'neon' })).error ?? '') && (await state()).settings.theme === 'sand')
@@ -5002,6 +4998,11 @@ export default async function ({ cwd }) {
     // There is no setting for correcting what was heard: a small model does it, or, for the test agent, the names Lynx knows.
     check('no setting to turn correcting off', (await win.locator('.h-set .h-bg-row', { hasText: 'Correct what was heard' }).count()) === 0)
     check('Read replies aloud is off to start with', (await state()).voice.speak === false && (await win.locator('.h-set .h-toggle[aria-label="Read replies aloud"][aria-checked="false"]').count()) === 1)
+    // Sending by itself is off to start with: what is said is written in, to send by hand. The steps after want it on.
+    check('Send when I stop talking is off to start with', (await state()).voice.autoSend === false && (await win.locator('.h-set .h-toggle[aria-label="Send when I stop talking"][aria-checked="false"]').count()) === 1)
+    if (!(await state()).voice.autoSend) await win.click('.h-set .h-toggle[aria-label="Send when I stop talking"]')
+    await until('sending by itself', async () => (await state()).voice.autoSend === true, 5000)
+    await until('the pause to pick', async () => (await win.locator('.h-set .h-bg-row', { hasText: 'Pause before sending' }).count()) === 1, 5000)
     // How long a quiet ends what was said, while it sends by itself.
     const pauses = win.locator('.h-set .h-bg-row', { hasText: 'Pause before sending' })
     check('the pause before sending can be picked, 1.5 s to start with', (await pauses.locator('[role=tab]').allInnerTexts()).join() === '0.8 s,1 s,1.5 s,2 s,3 s' && (await pauses.locator('[role=tab][aria-selected=true]').innerText()) === '1.5 s', (await pauses.locator('[role=tab]').allInnerTexts()).join())
@@ -5132,6 +5133,8 @@ export default async function ({ cwd }) {
     const tab = await win.locator('.h-agent-tab.on .h-agent-tab-title').textContent()
     check('a new conversation started while another workspace came on screen opens in the panel there, what was said shown all along', missing === 0 && tab !== 'New tab' && (await win.locator('.h-agent .sb-msg-user:not(.outgoing)', { hasText: 'third card' }).count()) === 1 && (await win.locator('.h-agent .sb-msg-user.outgoing').count()) === 0, `${missing} samples without it | tab ${tab} | users ${JSON.stringify(await win.locator('.h-agent .sb-msg.user').allInnerTexts())}`)
     await win.click('.h-voice button:has-text("End")').catch(() => {})
+    // Sending by itself back to the default, off, as the step found it.
+    await win.evaluate(() => window.sb.voice.set({ autoSend: false }))
   }
   if (want('background')) {
     // Quitting the window leaves the service, and what it is running, as they were.
@@ -5312,7 +5315,7 @@ export default async function ({ cwd }) {
     await win.waitForTimeout(1800)
     const welcome = (await win.locator('.fr h1').innerText()).replace(/\s+/g, ' ').trim()
     check('first run: a new install opens on the welcome', welcome === 'Welcome to Lynx' && (await win.locator('.h-agent').count()) === 0, `${welcome} | panels: ${await win.locator('.h-agent').count()}`)
-    check('first run: its words can be selected, with the text cursor', JSON.stringify(await win.locator('.fr h1').evaluate((el) => [getComputedStyle(el).userSelect, getComputedStyle(el).cursor])) === '["text","text"]' && (await win.locator('.fr-sub').first().innerText()) === 'The fully customizable harness for knowledge work')
+    check('first run: its words can be selected, with the text cursor', JSON.stringify(await win.locator('.fr h1').evaluate((el) => [getComputedStyle(el).userSelect, getComputedStyle(el).cursor])) === '["text","text"]' && (await win.locator('.fr-sub').first().innerText()) === 'The open-source AI workspace you can fully customize')
     await shot('firstrun-welcome')
     await next().click()
     await until('the agents looked for', async () => (await win.locator('.fr-agent').count()) === 2, 60000)
@@ -5348,9 +5351,38 @@ export default async function ({ cwd }) {
     check('first run: sent, the blue box goes and the button comes in as pixels', (await win.locator('.fr-demo-row.picked').count()) === 0 && (await win.locator('.fr-demo-note').count()) === 0)
     await shot('firstrun-demo-pixels')
     await until('the demo agent at work', async () => (await win.locator('.fr-demo-flip.over').count()) === 1, 12000)
-    check('first run: what Lynx does plays out: a row picked, a button made, Claude Code running', (await win.locator('.fr-demo-running').innerText()).includes('Claude Code running') && (await win.locator('.fr-demo-running .sb-spinner').count()) === 1 && (await win.locator('.fr-demo-cursor .hand').count()) === 1 && (await win.locator('.fr-dots button').count()) === 4)
+    check('first run: what Lynx does plays out: a row picked, a button made, Claude Code running', (await win.locator('.fr-demo-running').innerText()).includes('Claude Code running') && (await win.locator('.fr-demo-running .sb-spinner').count()) === 1 && (await win.locator('.fr-demo-cursor .hand').count()) === 1 && (await win.locator('.fr-dots button').count()) === 5)
     await shot('firstrun-demo-running')
     await next().click()
+    // Voice input: a switch, off, that says what turning it on means. Left off, Continue goes on.
+    await until('the voice step', async () => (await win.locator('.fr h2').innerText().catch(() => '')) === 'Enable voice input?', 10000)
+    check('first run: the voice step has a switch that starts off', (await win.locator('.fr-voice-opt [role="switch"]').getAttribute('aria-checked')) === 'false')
+    // On and off again before Continue: only a wish, nothing downloads. Enter on the switch is the switch's, not Continue.
+    const voiceSwitch = win.locator('.fr-voice-opt [role="switch"]')
+    await voiceSwitch.focus()
+    await win.keyboard.press('Enter')
+    check('first run: Enter on the voice switch turns it on and stays on the step', (await voiceSwitch.getAttribute('aria-checked')) === 'true' && (await win.locator('.fr h2').innerText()) === 'Enable voice input?')
+    check('first run: switched on, voice is not on yet: that waits for Continue', !(await win.evaluate(() => window.sb.state())).voice.enabled)
+    await win.keyboard.press('Enter')
+    check('first run: Enter again turns it off, still on the step', (await voiceSwitch.getAttribute('aria-checked')) === 'false' && (await win.locator('.fr h2').innerText()) === 'Enable voice input?')
+    check('first run: and the switch says what turning it on downloads', (await win.locator('.fr-voice-opt small').first().innerText()).startsWith('Downloads a 480MB model in the background') && JSON.stringify((await win.locator('.fr-foot .fr-acts .fr-btn').allInnerTexts()).map((t) => t.replace(/\s*↵\s*$/, '').trim())) === '["Back","Continue"]')
+    await win.waitForTimeout(800)
+    await shot('firstrun-voice')
+    // Continue applies the choice: on, voice is turned on with the step's model (and its download starts; stopped here).
+    const voiceBefore = (await state()).voice
+    await voiceSwitch.click()
+    await next().click()
+    await until('voice on after Continue', async () => (await state()).voice.enabled === true, 5000)
+    check('first run: Continue with the switch on turns voice on, with the balanced model', (await state()).voice.model === 'parakeet')
+    await win.evaluate(([model]) => window.sb.voice.set({ enabled: false, model }).then(() => window.sb.voice.cancel()), [voiceBefore.model])
+    await until('voice off again', async () => !(await state()).voice.enabled && !(await state()).voice.download, 10000)
+    // Back to the step and on without it: off again, Continue leaves voice off.
+    await win.locator('.fr-foot .fr-btn', { hasText: 'Back' }).click()
+    await until('the voice step again', async () => (await win.locator('.fr h2').innerText().catch(() => '')) === 'Enable voice input?', 10000)
+    if ((await voiceSwitch.getAttribute('aria-checked')) === 'true') await voiceSwitch.click()
+    await next().click()
+    await win.waitForTimeout(300)
+    check('first run: Continue with the switch off leaves voice off', !(await state()).voice.enabled)
     await win.waitForSelector('.fr-ask input', { timeout: 10000 })
     check('first run: the picks sit in two even rows of four', JSON.stringify(Object.values((await win.locator('.fr-pick').evaluateAll((all) => all.map((b) => Math.round(b.getBoundingClientRect().top)))).reduce((rows, top) => ((rows[top] = (rows[top] ?? 0) + 1), rows), {}))) === '[4,4]')
     check('first run: the services step says what it is for, and that any MCP or API will do', (await win.locator('.fr-connect h2').innerText()) === 'Connect the services you use day-to-day' && (await win.locator('.fr-connect .fr-sub').innerText()) === 'You can connect any MCP or API. Below are just some examples.')

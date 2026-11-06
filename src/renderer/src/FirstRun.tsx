@@ -1,10 +1,10 @@
-// The first-run screen: before a new install's window shows the app, four steps over all of it.
+// The first-run screen: before a new install's window shows the app, five steps over all of it.
 // Welcome; Lynx runs on the user's own Claude Code or Codex (one installed and signed in lets them
-// on); what Lynx does; and connecting the services they use, by picking them or by saying so to an
+// on); what Lynx does; whether to turn voice input on (its model downloads meanwhile); and connecting the services they use, by picking them or by saying so to an
 // agent whose work shows as one line a step and a card per connector, not as a chat. That agent's
 // conversation is the onboarding one (onboarding.ts): opening Lynx carries it on in the panel.
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Bell, ChevronsUpDown, CircleAlert, CircleCheck, Moon, Settings, Sun } from 'lucide-react'
+import { ArrowUp, Bell, ChevronsUpDown, CircleAlert, CircleCheck, Mic, Moon, Paperclip, Settings, Sun } from 'lucide-react'
 import { agents, isBusy, type Provider, type SessionEvent, useSession } from '@kit/agents'
 import { call, useConnectors, useTool } from '@kit/core'
 import { Icon } from '@kit/icons'
@@ -13,10 +13,14 @@ import { ConnectorIcon } from '@kit/toolviews'
 import { Modal as KitModal } from '@kit/ui'
 import { createPortal } from 'react-dom'
 import type { AppState } from '@shared/types'
+import { voiceModel } from '@shared/voice'
 import { bridge } from './api'
 import { instructions, newDraftName } from './AgentPanel'
 import { AgentMark } from './ComposerLine'
 import { beginOnboarding, FIRST_RUN_RULES, MANUAL, onboardingRules, onboardingSession, tellOnboarding, useOnboardingSessionId } from './onboarding'
+import { Keys } from './CommandBar'
+import { comboFor } from './keymap'
+import { Toggle } from './Page'
 import { useAgentSignIn } from './SignIn'
 import { WorkspaceIcon } from './WorkspaceIcon'
 import { agentStatus } from './agentStatus'
@@ -26,13 +30,21 @@ import { plannedTemplates, type Planned } from './firstRunTemplates'
 const DONE = 'sb.firstrun.done'
 export const firstRunDone = () => !!localStorage.getItem(DONE) || !!bridge.skipFirstRun
 
-const STEPS = ['welcome', 'agents', 'what', 'connect'] as const
+const STEPS = ['welcome', 'agents', 'what', 'voice', 'connect'] as const
+
+/** The speech model the voice step turns on: the balanced one, Settings' default too. */
+const FIRST_RUN_VOICE_MODEL = 'parakeet'
+/** Its download, as the switch says it: to the nearest 10 MB. */
+const FIRST_RUN_VOICE_SIZE = `${Math.round(voiceModel(FIRST_RUN_VOICE_MODEL).download / 1e7) * 10}MB`
 
 /** The two agents Lynx runs, and where each says how to install it. */
 const AGENTS = [
   { name: 'claude', title: 'Claude Code', docs: 'https://code.claude.com/docs/en/setup#install-claude-code' },
   { name: 'codex', title: 'Codex', docs: 'https://learn.chatgpt.com/docs/codex/cli#getting-started' },
 ]
+
+/** Where to ask for an agent Lynx does not run yet: the project's GitHub issues. */
+const AGENT_REQUESTS = 'https://github.com/yakkomajuri/lynx/issues/new'
 
 /** Services to pick from, by their MCP servers: examples, not the limit. */
 const PICKS: { name: string; url: string; /** Where to make the token it asks for, when it asks for one. */ token?: string }[] = [
@@ -105,10 +117,25 @@ export function FirstRun({ state, onDone }: { state: AppState; /** Finished or s
     setPreparing(true)
   }
   const next = () => (last ? finish() : setAt((n) => n + 1))
+  // Voice input as the switch on its step has it: put into effect only on going on past the step, so
+  // flicking it on and off downloads nothing. On, the model downloads in the background (src/main/voice.ts).
+  const [voiceWanted, setVoiceWanted] = useState(state.voice.enabled)
+  const from = useRef(at)
+  useEffect(() => {
+    const left = STEPS[from.current] === 'voice' && at > from.current
+    from.current = at
+    if (!left || voiceWanted === state.voice.enabled) return
+    const fail = (e: unknown) => console.error('[first run] could not change voice input', e)
+    if (voiceWanted) void bridge.voice.set({ enabled: true, model: FIRST_RUN_VOICE_MODEL }).catch(fail)
+    else void bridge.voice.set({ enabled: false }).then(() => (state.voice.download ? bridge.voice.cancel() : undefined)).catch(fail)
+  }, [at])
   const blocked = step === 'agents' && !agentReady
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement | null)?.closest?.('input, textarea')) return
+      const target = e.target as HTMLElement | null
+      if (target?.closest?.('input, textarea')) return
+      // Enter on a control (the voice switch, a pick, Back) is that control's: it is not Continue too.
+      if (e.key === 'Enter' && target?.closest?.('button, a, select, [role="switch"], [contenteditable="true"]')) return
       if ((e.key === 'Enter' || e.key === 'ArrowRight') && !blocked) next()
       else if (e.key === 'ArrowLeft' && at > 0) setAt(at - 1)
     }
@@ -140,6 +167,7 @@ export function FirstRun({ state, onDone }: { state: AppState; /** Finished or s
         {step === 'welcome' && <Welcome key="welcome" />}
         {step === 'agents' && <Agents key="agents" onReady={setAgentReady} />}
         {step === 'what' && <WhatItDoes key="what" />}
+        {step === 'voice' && <VoiceStep key="voice" wanted={voiceWanted} onWant={setVoiceWanted} />}
         {step === 'connect' && <Connect key="connect" state={state} />}
       </div>
       <footer className="fr-foot">
@@ -261,7 +289,7 @@ function Welcome() {
         ))}
       </h1>
       <p className="fr-sub fr-in" style={{ '--d': 900 } as React.CSSProperties}>
-        The fully customizable harness for knowledge work
+        The open-source AI workspace you can fully customize
       </p>
     </section>
   )
@@ -310,6 +338,12 @@ function Agents({ onReady }: { onReady: (ready: boolean) => void }) {
         {status.ok === null ? <span className="fr-tick" /> : status.ok ? <CircleCheck className="fr-ok" size={17} strokeWidth={2} aria-hidden="true" /> : <CircleAlert className="fr-warn" size={17} strokeWidth={2} aria-hidden="true" />}
         <span>{status.text}</span>
       </div>
+      <p className="fr-other fr-in" style={{ '--d': 400 } as React.CSSProperties}>
+        Use another agent?{' '}
+        <button type="button" className="fr-link" onClick={() => void bridge.openExternal(AGENT_REQUESTS)}>
+          Submit a request.
+        </button>
+      </p>
     </section>
   )
 }
@@ -397,9 +431,83 @@ function SignInRow({ agent, provider, delay, onChanged }: { agent: (typeof AGENT
 function WhatItDoes() {
   return (
     <section className="fr-slide fr-anchored">
-      <h2 className="fr-in">Connect your data, quickly build custom UIs, and trigger local agents from them</h2>
+      <h2 className="fr-in">Connect your data, build custom UIs, and trigger local agents from them</h2>
       <PointDemo />
     </section>
+  )
+}
+
+/** Whether to turn voice input on: a switch, only a wish until Continue (FirstRun), and the agent's message box with voice at work. */
+function VoiceStep({ wanted, onWant }: { wanted: boolean; onWant: (on: boolean) => void }) {
+  // Switched on, macOS asks for the microphone there and then, not the first time the user talks. Refused, the step says where to allow it.
+  const [micRefused, setMicRefused] = useState<string | null>(null)
+  const want = (on: boolean) => {
+    onWant(on)
+    setMicRefused(null)
+    if (on) void bridge.voice.askMic().catch((e) => setMicRefused(e instanceof Error ? e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : String(e)))
+  }
+  return (
+    <section className="fr-slide fr-anchored fr-voice-step">
+      <h2 className="fr-in">Enable voice input?</h2>
+      <div className="fr-voice-opt fr-in" style={{ '--d': 200 } as React.CSSProperties}>
+        <div className="fr-voice-opt-text" onClick={() => want(!wanted)}>
+          <span className="fr-voice-opt-name">Voice input</span>
+          <small>Downloads a {FIRST_RUN_VOICE_SIZE} model in the background, ready in a few minutes.</small>
+          <small>Configure voice input any time in Settings.</small>
+          {wanted && micRefused && <small className="fr-voice-opt-bad">{micRefused}</small>}
+        </div>
+        <Toggle on={wanted} label="Voice input" onChange={want} />
+      </div>
+      <VoiceDemo />
+    </section>
+  )
+}
+
+const VOICE_SAID = ['Show', 'me', "this week's", 'open', 'Linear', 'issues']
+/**
+ * The agent's message box with voice at work, whatever the switch says: listening, and what is said
+ * writing itself in, again and again. Drawn, not live, and tidier than the app: the listening wave is
+ * in the box, where the app has a bar above it.
+ */
+function VoiceDemo() {
+  const [words, setWords] = useState(0)
+  useEffect(() => {
+    // A beat of listening, a word at a time, a pause on the whole line, then again.
+    let n = 0
+    const t = setInterval(() => {
+      n = (n + 1) % (VOICE_SAID.length + 6)
+      setWords(Math.max(0, Math.min(VOICE_SAID.length, n - 2)))
+    }, 380)
+    return () => clearInterval(t)
+  }, [])
+  const said = VOICE_SAID.slice(0, words).join(' ')
+  return (
+    <div className="fr-voice-demo fr-in" style={{ '--d': 350 } as React.CSSProperties} aria-hidden="true">
+      <div className="sb-composer line">
+        <div className="sb-composer-box">
+          <div className="sb-composer-row">
+            <span className="sb-attach">
+              <Paperclip size={17} strokeWidth={1.7} />
+            </span>
+            <span className="fr-voice-wave">
+              {Array.from({ length: 7 }, (_, i) => (
+                <i key={i} style={{ '--i': i } as React.CSSProperties} />
+              ))}
+            </span>
+            <span className={`fr-voice-field${said ? '' : ' empty'}`}>{said || 'Listening…'}</span>
+            <span className="sb-attach h-voice-toggle on fr-voice-mic">
+              <Mic size={17} strokeWidth={1.7} />
+              <span className="fr-voice-tip" role="tooltip">
+                Voice mode <Keys combo={comboFor('voice')} />
+              </span>
+            </span>
+            <span className={`sb-send${said ? '' : ' off'}`}>
+              <ArrowUp size={18} strokeWidth={2.2} />
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 

@@ -582,7 +582,7 @@ export const AppConnectorLive = Layer.effect(AppConnector)(
       },
       {
         name: 'theme_set',
-        description: `Choose the app's theme: how Lynx's own pages look (the window, Home, the agent panel, settings). Workspaces the user built keep their own look, so the two are easy to tell apart; to restyle those, use the design system. It is the user's choice: change it only when they ask. ${THEMES.map((t) => `${t.id}: ${t.about}`).join(' ')}`,
+        description: `Choose the app's theme: how Lynx's own pages look (the window, the agent panel, settings). Workspaces, Home included, keep their own look, so the two are easy to tell apart; to restyle those, use the design system. It is the user's choice: change it only when they ask. ${THEMES.map((t) => `${t.id}: ${t.about}`).join(' ')}`,
         props: { theme: { type: 'string', enum: THEMES.map((t) => t.id) } },
         required: ['theme'],
         run: (a) => sync(() => ({ theme: settings.setTheme(a.theme).theme })),

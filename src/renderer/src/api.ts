@@ -55,6 +55,8 @@ interface Bridge {
     cancel: () => Promise<void>
     /** Checks voice mode can start, asking macOS for the microphone. */
     prepare: () => Promise<void>
+    /** Asks macOS for the microphone alone, before any model is here; rejects, saying where to allow it, when refused. */
+    askMic: () => Promise<void>
     /** Loads the model; samples are taken once it is done, and `voice` events follow. */
     start: () => Promise<void>
     stop: () => Promise<void>

@@ -9,8 +9,6 @@ import { askAgent, getTransport } from './core'
 import { comboOf, sameCombo, type Combo } from './keys'
 import './kit.css'
 import './workspace.css'
-// After the workspace look: only Home wears a theme (data-sb-theme on its page), and the theme's tokens must win there.
-import './themes.css'
 
 export * from './core'
 export * from './agents'

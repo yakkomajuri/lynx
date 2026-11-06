@@ -287,7 +287,7 @@ export interface AppNotification {
 export interface AppSettings {
   /** Markdown: the look every workspace should have unless told otherwise. Empty when none is set. */
   designSystem: string
-  /** How the app's own pages look (shared/themes.ts). Workspaces other than Home do not follow it. */
+  /** How the app's own pages look (shared/themes.ts). Workspaces, Home included, do not follow it. */
   theme: ThemeId
   /** Light, dark, or as the system is: for the whole window, workspaces too. */
   mode: ModeId
