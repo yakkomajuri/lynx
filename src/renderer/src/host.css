@@ -7909,10 +7909,6 @@ td.h-st-blank {
 .fr-voice-demo {
   width: min(560px, 100%);
   margin-top: 30px;
-  padding: 18px 16px 16px;
-  border-radius: 18px;
-  background: var(--sb-bg);
-  box-shadow: 0 0 0 1px var(--sb-line), 0 18px 50px -18px rgb(0 0 0 / 0.25);
   text-align: left;
   user-select: none;
   cursor: default;

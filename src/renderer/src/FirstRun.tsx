@@ -468,7 +468,6 @@ function VoiceDemo() {
             ))}
           </span>
           <span className="h-voice-label">Listening</span>
-          <span className="h-voice-sub">Pause to send</span>
       </div>
       <div className="sb-composer line">
         <div className="sb-composer-box">
