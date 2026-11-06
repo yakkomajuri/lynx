@@ -5312,7 +5312,7 @@ export default async function ({ cwd }) {
     await win.waitForTimeout(1800)
     const welcome = (await win.locator('.fr h1').innerText()).replace(/\s+/g, ' ').trim()
     check('first run: a new install opens on the welcome', welcome === 'Welcome to Lynx' && (await win.locator('.h-agent').count()) === 0, `${welcome} | panels: ${await win.locator('.h-agent').count()}`)
-    check('first run: its words can be selected, with the text cursor', JSON.stringify(await win.locator('.fr h1').evaluate((el) => [getComputedStyle(el).userSelect, getComputedStyle(el).cursor])) === '["text","text"]' && (await win.locator('.fr-sub').first().innerText()) === 'The fully customizable harness for knowledge work')
+    check('first run: its words can be selected, with the text cursor', JSON.stringify(await win.locator('.fr h1').evaluate((el) => [getComputedStyle(el).userSelect, getComputedStyle(el).cursor])) === '["text","text"]' && (await win.locator('.fr-sub').first().innerText()) === 'The open-source AI workspace you can fully customize')
     await shot('firstrun-welcome')
     await next().click()
     await until('the agents looked for', async () => (await win.locator('.fr-agent').count()) === 2, 60000)
