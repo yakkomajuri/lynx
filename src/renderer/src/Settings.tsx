@@ -326,7 +326,7 @@ export function AppearanceView({ state, toast }: { state: AppState; toast: Toast
             <div className="h-themes h-layouts" role="group" aria-label="Workspaces">
               {WORKSPACE_PLACES.map((p) => (
                 <button key={p.id} className={`h-theme${p.id === layout.workspaces ? ' on' : ''}`} aria-pressed={p.id === layout.workspaces} data-place={p.id} onClick={() => p.id !== layout.workspaces && place({ workspaces: p.id })}>
-                  <LayoutPicture workspaces={p.id} agent={layout.agent} />
+                  <LayoutPicture workspaces={p.id} agent={layout.agent} focus="workspaces" />
                   <span className="h-theme-name">
                     {p.name}
                     {p.id === layout.workspaces && <Check size={14} strokeWidth={2.2} />}
@@ -339,7 +339,7 @@ export function AppearanceView({ state, toast }: { state: AppState; toast: Toast
             <div className="h-themes h-layouts" role="group" aria-label="Agent">
               {AGENT_PLACES.map((p) => (
                 <button key={p.id} className={`h-theme${p.id === layout.agent ? ' on' : ''}`} aria-pressed={p.id === layout.agent} data-place={p.id} onClick={() => p.id !== layout.agent && place({ agent: p.id })}>
-                  <LayoutPicture workspaces={layout.workspaces} agent={p.id} />
+                  <LayoutPicture workspaces={layout.workspaces} agent={p.id} focus="agent" />
                   <span className="h-theme-name">
                     {p.name}
                     {p.id === layout.agent && <Check size={14} strokeWidth={2.2} />}
@@ -355,53 +355,84 @@ export function AppearanceView({ state, toast }: { state: AppState; toast: Toast
   )
 }
 
-/** The window in small, laid out as a choice would have it: the title bar or a sidebar, the agent beside the workspace or floating over it. */
-function LayoutPicture({ workspaces, agent }: LayoutSettings) {
+/**
+ * The window in small, laid out as a choice would have it, drawn after the real one: the title bar with
+ * the workspace's name and its buttons; the workspaces as a sidebar (search, the list with the open one
+ * picked, and running agents, notifications and settings at its foot) or as the list that drops from the
+ * name; the agent as a panel beside the workspace, or floating over it above the bar along the bottom.
+ * What the row of choices is about (`focus`) is in the accent colour; the rest is grey.
+ */
+function LayoutPicture({ workspaces, agent, focus }: LayoutSettings & { focus: 'workspaces' | 'agent' }) {
+  const ws = focus === 'workspaces' ? ' fx' : ''
+  const ag = focus === 'agent' ? ' fx' : ''
+  const chat = (
+    <>
+      <i className="h-lp-msg me" />
+      <i className="h-lp-msg" />
+      <i className="h-lp-msg short" />
+      <b className="h-lp-input" />
+    </>
+  )
   return (
-    <span className={`h-theme-view h-layout-view ${workspaces} ${agent}`} aria-hidden>
-      <span className="h-theme-bar">
-        <i />
-        <i />
-        <i />
-        {workspaces === 'top' && <u />}
-        {agent === 'panel' && <b />}
-      </span>
-      <span className="h-theme-body">
-        {workspaces === 'side' && (
-          <span className="h-layout-side">
-            <i />
-            <i />
-            <i />
-            <i />
-            <em />
-          </span>
-        )}
-        <span className="h-layout-main">
-          <span className="h-layout-row">
-            <span className="h-theme-ws">
-              <i />
-              <i />
-              <i />
-            </span>
-            {agent === 'panel' && (
-              <span className="h-theme-agent">
-                <i />
-                <i />
-                <b />
-              </span>
-            )}
-          </span>
-          {agent === 'float' && (
+    <span className={`h-lp ${workspaces} ${agent}`} aria-hidden>
+      <span className="h-lp-bar">
+        <span className={`h-lp-title${workspaces === 'top' ? ws : ''}`}>
+          <i />
+          {workspaces === 'top' && <em />}
+        </span>
+        <span className="h-lp-acts">
+          <i className="h-lp-pill" />
+          {agent === 'panel' && <i className={`h-lp-pill agent${ag}`} />}
+          {workspaces === 'top' && (
             <>
-              <span className="h-theme-agent h-layout-float">
-                <i />
-                <b />
-              </span>
-              <span className="h-layout-line" />
+              <i className="h-lp-dot" />
+              <i className="h-lp-dot" />
+              <i className="h-lp-dot" />
             </>
           )}
         </span>
       </span>
+      <span className="h-lp-body">
+        {workspaces === 'side' && (
+          <span className={`h-lp-side${ws}`}>
+            <i className="search" />
+            <i className="on" />
+            <i />
+            <i className="short" />
+            <span className="h-lp-side-foot">
+              <i />
+              <i />
+              <i />
+            </span>
+          </span>
+        )}
+        <span className="h-lp-main">
+          <span className="h-lp-row">
+            <span className="h-lp-ws">
+              <i />
+              <i />
+              <i />
+              <i />
+            </span>
+            {agent === 'panel' && <span className={`h-lp-agent${ag}`}>{chat}</span>}
+          </span>
+          {agent === 'float' && (
+            <>
+              <span className={`h-lp-agent float${ag}`}>{chat}</span>
+              <span className="h-lp-foot">
+                <i className={`h-lp-pill agent${ag}`} />
+              </span>
+            </>
+          )}
+        </span>
+      </span>
+      {workspaces === 'top' && focus === 'workspaces' && (
+        <span className="h-lp-menu fx">
+          <i className="on" />
+          <i />
+          <i className="short" />
+        </span>
+      )}
     </span>
   )
 }
