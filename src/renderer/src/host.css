@@ -7198,7 +7198,7 @@ td.h-st-blank {
   position: fixed;
   inset: 0;
   z-index: 200;
-  --fr-bg: color-mix(in oklab, var(--sb-bg), #000 calc(var(--sb-dark, 0) * 40%));
+  --fr-bg: color-mix(in oklab, var(--sb-bg), #000 calc(var(--sb-dark, 0) * 28%));
   background: var(--fr-bg);
   color: var(--sb-text);
 }
