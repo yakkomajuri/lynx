@@ -7354,7 +7354,7 @@ td.h-st-blank {
   justify-content: space-between;
   gap: 12px;
   /* In from the edges and up off the bottom, where the eye finds them. Still under the slides' 112px bottom padding. */
-  padding: 18px clamp(24px, 6vw, 72px) 40px;
+  padding: 18px clamp(28px, 7.5vw, 96px) 52px;
   background: var(--fr-bg);
   -webkit-app-region: no-drag;
 }
