@@ -50,18 +50,18 @@ Calm and dense. Information first; no decoration that does not carry meaning.
 
 export type Section = 'marketplace' | 'tools' | 'schedules' | 'runs' | 'store' | 'connectors' | 'design' | 'appearance' | 'background' | 'voice' | 'usage' | 'shortcuts'
 export const SECTIONS: { id: Section; name: string; icon: ReactNode }[] = [
-  { id: 'marketplace', name: 'Marketplace', icon: <Globe size={17} /> },
   { id: 'connectors', name: 'Connectors', icon: <Icon name="plug" size={17} /> },
   { id: 'appearance', name: 'Appearance', icon: <SwatchBook size={16} strokeWidth={1.6} /> },
-  { id: 'design', name: 'Design system', icon: <Palette size={16} strokeWidth={1.6} /> },
-  { id: 'background', name: 'Background', icon: <Moon size={16} strokeWidth={1.6} /> },
+  { id: 'shortcuts', name: 'Shortcuts', icon: <Keyboard size={16} strokeWidth={1.6} /> },
   { id: 'voice', name: 'Voice', icon: <Mic size={16} strokeWidth={1.6} /> },
   { id: 'usage', name: 'Usage', icon: <Gauge size={16} strokeWidth={1.6} /> },
-  { id: 'shortcuts', name: 'Shortcuts', icon: <Keyboard size={16} strokeWidth={1.6} /> },
-  { id: 'tools', name: 'Tools', icon: <Icon name="wrench" size={17} /> },
+  { id: 'marketplace', name: 'Marketplace', icon: <Globe size={17} /> },
   { id: 'schedules', name: 'Schedules', icon: <Clock size={16} strokeWidth={1.6} /> },
+  { id: 'tools', name: 'Tools', icon: <Icon name="wrench" size={17} /> },
   { id: 'runs', name: 'Runs', icon: <History size={16} strokeWidth={1.6} /> },
   { id: 'store', name: 'Store', icon: <Database size={16} strokeWidth={1.6} /> },
+  { id: 'background', name: 'Background', icon: <Moon size={16} strokeWidth={1.6} /> },
+  { id: 'design', name: 'Design system', icon: <Palette size={16} strokeWidth={1.6} /> },
 ]
 
 export function SettingsDialog({ state, section, onSection, onClose, children }: { state: AppState; section: Section; onSection: (s: Section) => void; /** Puts settings away; the window is as it was under them. */ onClose: () => void; /** The open section. */ children: ReactNode }) {
