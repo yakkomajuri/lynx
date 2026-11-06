@@ -1999,7 +1999,7 @@ export default function App() {
   }
 
   if (want('theme')) {
-    // ── themes: the app's own pages wear one, Home with them; any other workspace stays plain
+    // ── themes: the app's own pages wear one; every workspace, Home included, stays plain
     const rail = () => win.evaluate(() => getComputedStyle(document.querySelector('.h-main')).backgroundColor)
     const inFrame = async (name) => {
       const f = await until(`${name}'s frame`, () => win.frames().find((f) => f.url().startsWith(`sbw://${name}/`)), 30000)
@@ -2035,17 +2035,12 @@ export default function App() {
     check('themes: its frame is plain too', (await win.evaluate(() => getComputedStyle(document.querySelector('.h-frame')).backgroundColor)) === (dark ? 'rgb(33, 33, 33)' : 'rgb(255, 255, 255)'))
     await shot('theme-ink-workspace')
     if (home) {
+      // Home (Onboarding) is a workspace like any other: plain, light or dark as the system is, so it stands apart from the app around it.
       await ok('app', 'workspace_open', { workspace: home.id })
       const h = await inFrame(home.id)
-      await until('home in ink', async () => (await look(h)).theme === 'ink', 5000).catch(() => {})
-      check('themes: Home wears the theme, dark in light mode too', (await look(h)).theme === 'ink' && (await look(h)).bg === '#161617' && (await h.evaluate(() => getComputedStyle(document.documentElement).colorScheme)) === 'dark', JSON.stringify(await look(h)))
+      check('themes: Home does not wear the theme either', (await look(h)).theme === null && (await look(h)).bg === plain.bg && (await look(h)).dark === dark, JSON.stringify(await look(h)))
+      check('themes: and its frame is plain', (await win.evaluate(() => getComputedStyle(document.querySelector('.h-frame')).backgroundColor)) === (dark ? 'rgb(33, 33, 33)' : 'rgb(255, 255, 255)'))
       await shot('theme-ink-home')
-      // Changed while Home is on screen: it follows without loading again.
-      await h.evaluate(() => (window.__same = true))
-      await ok('app', 'theme_set', { theme: 'slate' })
-      await until('home in slate', async () => (await look(h)).theme === 'slate', 5000).catch(() => {})
-      check('themes: Home follows a change without loading again', (await look(h)).theme === 'slate' && (await h.evaluate(() => window.__same)) === true, JSON.stringify(await look(h)))
-      await shot('theme-slate-home')
     }
     await ok('app', 'theme_set', { theme: 'slate' })
     await ok('app', 'workspace_open', { workspace: mine.id })

@@ -1572,7 +1572,6 @@ function WorkspaceView(p: { frame: { current: FrameHandle | null }; /** The agen
     <Frame
       workspace={ws.id}
       version={shownVersion}
-      theme={ws.home ? state.settings.theme : undefined}
       mayHold={p.mayHold}
       pinned={p.annotating}
       onHeld={setHeld}

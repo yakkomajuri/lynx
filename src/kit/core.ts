@@ -54,8 +54,6 @@ function frameTransport(): Transport {
       if (m.ok) w?.resolve(m.data)
       else w?.reject(new Error(m.error))
     } else if (m.type === 'changed') emitAppChange({ connector: typeof m.connector === 'string' ? m.connector : undefined, errorsOnly: m.errorsOnly === true })
-    // Only Home is sent one: it is the app's own page, and wears the app's theme.
-    else if (m.type === 'theme') document.documentElement.dataset.sbTheme = String(m.theme)
   })
   const post = (type: string, payload: Record<string, unknown> = {}) => window.parent.postMessage({ sb: 1, type, ...payload }, '*')
   const ask = (type: string, payload: Record<string, unknown>) =>

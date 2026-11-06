@@ -281,7 +281,7 @@ export function AppearanceView({ state, toast }: { state: AppState; toast: Toast
             <span className="h-muted">{THEMES.find((t) => t.id === theme)?.name}</span>
           </div>
           <div className="h-settings">
-            <p className="h-hint">A theme colours what is Lynx's own: the window, Home, the agent, settings and menus. The workspaces you build keep their own look, so you can tell at a glance which is which. Light and dark follow the choice above.</p>
+            <p className="h-hint">A theme colours what is Lynx's own: the window, the agent, settings and menus. Workspaces, Onboarding included, keep their own look, so you can tell at a glance which is which. Light and dark follow the choice above.</p>
             <div className="h-themes" role="group" aria-label="Theme">
               {THEMES.map((t) => (
                 <button key={t.id} className={`h-theme${t.id === theme ? ' on' : ''}`} aria-pressed={t.id === theme} onClick={() => pick(t.id)}>

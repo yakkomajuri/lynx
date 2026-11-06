@@ -181,8 +181,7 @@ async function main() {
         bundle instanceof Error
           ? `<pre style="font:12px ui-monospace,Menlo,monospace;white-space:pre-wrap;padding:24px;color:#b3261e">${escapeHtml(bundle.message)}</pre>`
           : `<div id="root"></div><script>window.__SB_WORKSPACE__=${boot}</script><link rel="stylesheet" href="/bundle.css?v=${bundle.version}"><script src="/bundle.js?v=${bundle.version}"></script>`
-      // Home is the app's own page, so it starts in the app's theme; the window tells it when that changes.
-      return new Response(`<!doctype html><html${ws.home ? ` data-sb-theme="${known.settings.theme}"` : ''}><head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><title>${escapeHtml(ws.name)}</title></head><body>${body}</body></html>`, { headers: { ...headers, 'content-type': 'text/html; charset=utf-8' } })
+      return new Response(`<!doctype html><html><head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><title>${escapeHtml(ws.name)}</title></head><body>${body}</body></html>`, { headers: { ...headers, 'content-type': 'text/html; charset=utf-8' } })
     }
     if (path === '/bundle.js' || path === '/bundle.css') {
       const bundle = await service.bundle(id).catch((e: Error) => (console.error(`[sbw] ${id}${path}: ${e.message}`), null))

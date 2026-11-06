@@ -1,5 +1,5 @@
-// The app's themes. A theme colours what is Lynx's own (the window, Home, the agent panel,
-// settings, menus) and leaves the user's workspaces alone, so the two can be told apart at a
+// The app's themes. A theme colours what is Lynx's own (the window, the agent panel, settings,
+// menus) and leaves every workspace alone, Home included, so the two can be told apart at a
 // glance. The colours themselves are in src/kit/themes.css, under the same ids.
 export const THEMES = [
   { id: 'classic', name: 'Classic', about: 'Neutral greys, the same as your workspaces.' },

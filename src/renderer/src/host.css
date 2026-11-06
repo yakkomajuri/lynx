@@ -291,12 +291,6 @@ button.h-crumb:hover {
   flex: 1;
   min-width: 0;
 }
-/* Home is the app's own, and wears its theme. */
-.h-frame.native,
-.h-ghost.native {
-  color-scheme: inherit;
-  background: var(--sb-bg);
-}
 /* A workspace's next version loads unseen over the one on screen; once up, it takes that one's place
    and the old one fades out over it (Frame.tsx places both). */
 .h-ghost {
