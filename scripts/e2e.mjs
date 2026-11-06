@@ -5000,8 +5000,9 @@ export default async function ({ cwd }) {
     check('Read replies aloud is off to start with', (await state()).voice.speak === false && (await win.locator('.h-set .h-toggle[aria-label="Read replies aloud"][aria-checked="false"]').count()) === 1)
     // Sending by itself is off to start with: what is said is written in, to send by hand. The steps after want it on.
     check('Send when I stop talking is off to start with', (await state()).voice.autoSend === false && (await win.locator('.h-set .h-toggle[aria-label="Send when I stop talking"][aria-checked="false"]').count()) === 1)
-    await win.click('.h-set .h-toggle[aria-label="Send when I stop talking"]')
+    if (!(await state()).voice.autoSend) await win.click('.h-set .h-toggle[aria-label="Send when I stop talking"]')
     await until('sending by itself', async () => (await state()).voice.autoSend === true, 5000)
+    await until('the pause to pick', async () => (await win.locator('.h-set .h-bg-row', { hasText: 'Pause before sending' }).count()) === 1, 5000)
     // How long a quiet ends what was said, while it sends by itself.
     const pauses = win.locator('.h-set .h-bg-row', { hasText: 'Pause before sending' })
     check('the pause before sending can be picked, 1.5 s to start with', (await pauses.locator('[role=tab]').allInnerTexts()).join() === '0.8 s,1 s,1.5 s,2 s,3 s' && (await pauses.locator('[role=tab][aria-selected=true]').innerText()) === '1.5 s', (await pauses.locator('[role=tab]').allInnerTexts()).join())
@@ -5132,6 +5133,8 @@ export default async function ({ cwd }) {
     const tab = await win.locator('.h-agent-tab.on .h-agent-tab-title').textContent()
     check('a new conversation started while another workspace came on screen opens in the panel there, what was said shown all along', missing === 0 && tab !== 'New tab' && (await win.locator('.h-agent .sb-msg-user:not(.outgoing)', { hasText: 'third card' }).count()) === 1 && (await win.locator('.h-agent .sb-msg-user.outgoing').count()) === 0, `${missing} samples without it | tab ${tab} | users ${JSON.stringify(await win.locator('.h-agent .sb-msg.user').allInnerTexts())}`)
     await win.click('.h-voice button:has-text("End")').catch(() => {})
+    // Sending by itself back to the default, off, as the step found it.
+    await win.evaluate(() => window.sb.voice.set({ autoSend: false }))
   }
   if (want('background')) {
     // Quitting the window leaves the service, and what it is running, as they were.
