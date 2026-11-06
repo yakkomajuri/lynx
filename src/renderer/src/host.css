@@ -7193,27 +7193,13 @@ td.h-st-blank {
 }
 
 /* The first-run screen (FirstRun.tsx): over the whole window until a new install is set up. Each
-   step's lines rise out of a blur one after another; a faint grid drifts behind them. */
+   step's lines rise out of a blur one after another. In dark mode it sits darker than the app. */
 .fr {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: var(--sb-bg);
+  background: color-mix(in oklab, var(--sb-bg), #000 calc(var(--sb-dark, 0) * 40%));
   color: var(--sb-text);
-}
-.fr::before {
-  content: '';
-  position: absolute;
-  inset: -40px;
-  background-image: radial-gradient(var(--sb-line-strong) 1px, transparent 1.2px);
-  background-size: 22px 22px;
-  mask-image: radial-gradient(ellipse at 50% 40%, #000 10%, transparent 70%);
-  opacity: 0.5;
-  pointer-events: none;
-  animation: fr-drift 40s linear infinite;
-}
-@keyframes fr-drift {
-  to { transform: translate(22px, 22px); }
 }
 /* The screen's words can be selected, with the text cursor over them; the rest of the app keeps selection off. */
 .fr :is(h1, h2, p, li, .fr-status, .fr-agent-name, .fr-agent-sub, .fr-video-cap, .fr-step) {
@@ -7910,8 +7896,7 @@ td.h-st-blank {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fr *,
-  .fr::before {
+  .fr * {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
