@@ -6639,13 +6639,13 @@ td.h-st-blank {
   flex-direction: column;
   height: 128px;
   margin-bottom: 8px;
-  border-radius: 7px;
+  border-radius: 5px;
   overflow: hidden;
   background: var(--sb-rail);
   box-shadow: inset 0 0 0 1px var(--sb-line);
-  --lp-grey: color-mix(in srgb, var(--sb-faint) 45%, transparent);
+  --lp-grey: color-mix(in srgb, var(--sb-faint) 35%, transparent);
   --lp-fx: var(--sb-accent);
-  --lp-fx-soft: color-mix(in srgb, var(--sb-accent) 16%, transparent);
+  --lp-fx-soft: color-mix(in srgb, var(--sb-accent) 20%, transparent);
 }
 .h-lp i,
 .h-lp b,
@@ -6660,7 +6660,7 @@ td.h-st-blank {
   gap: 6px;
   height: 20px;
   flex: none;
-  padding: 0 7px 0 46px;
+  padding: 0 7px 0 6px;
 }
 .h-lp.side .h-lp-bar {
   /* The name sits over the workspace, past the sidebar. */
@@ -6671,12 +6671,12 @@ td.h-st-blank {
   align-items: center;
   gap: 3px;
   padding: 2px 3px;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 .h-lp-title i {
   width: 30px;
   height: 5px;
-  border-radius: 3px;
+  border-radius: 1px;
   background: var(--sb-text);
   opacity: 0.55;
 }
@@ -6704,7 +6704,7 @@ td.h-st-blank {
 .h-lp-pill {
   width: 18px;
   height: 8px;
-  border-radius: 4px;
+  border-radius: 3px;
   box-shadow: inset 0 0 0 1px var(--lp-grey);
 }
 .h-lp-pill.agent {
@@ -6717,7 +6717,7 @@ td.h-st-blank {
 .h-lp-dot {
   width: 5px;
   height: 5px;
-  border-radius: 50%;
+  border-radius: 1px;
   background: var(--lp-grey);
 }
 .h-lp-body {
@@ -6735,11 +6735,11 @@ td.h-st-blank {
   flex-direction: column;
   gap: 4px;
   padding: 3px 4px 2px;
-  border-radius: 5px;
+  border-radius: 3px;
 }
 .h-lp-side i {
   height: 5px;
-  border-radius: 3px;
+  border-radius: 1px;
   background: var(--lp-grey);
 }
 .h-lp-side i.search {
@@ -6795,14 +6795,14 @@ td.h-st-blank {
   flex-direction: column;
   gap: 5px;
   padding: 9px 9px;
-  border-radius: 5px;
+  border-radius: 3px;
   color-scheme: light dark;
   background: light-dark(#ffffff, #212121);
   box-shadow: 0 0 0 1px light-dark(rgba(0, 0, 0, 0.09), rgba(255, 255, 255, 0.1));
 }
 .h-lp-ws i {
   height: 4px;
-  border-radius: 2px;
+  border-radius: 1px;
   background: light-dark(rgba(0, 0, 0, 0.12), rgba(255, 255, 255, 0.16));
 }
 .h-lp-ws i:nth-child(1) {
@@ -6828,7 +6828,7 @@ td.h-st-blank {
   gap: 4px;
   padding: 7px 6px 6px;
   box-sizing: border-box;
-  border-radius: 6px;
+  border-radius: 3px;
   background: var(--sb-bg);
   box-shadow: 0 0 0 1px var(--sb-line);
 }
@@ -6843,14 +6843,14 @@ td.h-st-blank {
 .h-lp-msg {
   width: 80%;
   height: 4px;
-  border-radius: 2px;
+  border-radius: 1px;
   background: var(--lp-grey);
 }
 .h-lp-msg.me {
   align-self: flex-end;
   width: 55%;
   height: 8px;
-  border-radius: 4px;
+  border-radius: 3px;
   background: var(--sb-bubble);
 }
 .h-lp-msg.short {
@@ -6859,7 +6859,7 @@ td.h-st-blank {
 .h-lp-input {
   height: 10px;
   margin-top: 2px;
-  border-radius: 5px;
+  border-radius: 3px;
   background: var(--sb-surface);
   box-shadow: 0 0 0 1px var(--sb-line-strong);
 }
@@ -6885,19 +6885,19 @@ td.h-st-blank {
 .h-lp-menu {
   position: absolute;
   top: 18px;
-  left: 44px;
+  left: 5px;
   width: 30%;
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 6px;
-  border-radius: 6px;
+  border-radius: 3px;
   background: var(--sb-surface);
   box-shadow: 0 0 0 1.5px var(--lp-fx), 0 6px 16px rgba(0, 0, 0, 0.18);
 }
 .h-lp-menu i {
   height: 5px;
-  border-radius: 3px;
+  border-radius: 1px;
   background: color-mix(in srgb, var(--lp-fx) 40%, transparent);
 }
 .h-lp-menu i.on {
