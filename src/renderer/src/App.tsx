@@ -40,6 +40,7 @@ import { SchedulesView } from './Schedules'
 import { StoreView } from './Store'
 import { AppearanceView, BackgroundView, DesignSystemView, MarketplaceSettings, SECTIONS, SettingsDialog, UsageView, VoiceSettingsView, type Section } from './Settings'
 import { usePointMentions } from './pointMentions'
+import { openPointNote, type PointNote } from './pointNote'
 import { Sidebar } from './Sidebar'
 import { Switcher, under, WORKSPACE_DRAG } from './Switcher'
 import { ShortcutsView } from './Shortcuts'
@@ -133,18 +134,7 @@ export function App() {
   const panel = useRef<AgentPanelHandle>(null)
   const finder = useRef<FindHandle>(null)
   const [annotating, setAnnotating] = useState(false)
-  // Point's "Trigger agent right away" is ticked in the note box, inside the workspace's frame, so workspace code
-  // could post the same thing. A note sends itself only when Point was turned on by the user (not by a workspace,
-  // through the kit or a forwarded shortcut) and the window has just had a real press or key. Anything else only
-  // joins the list, for the user to send.
-  const pointMine = useRef(false)
-  // What handlePost is running for, while it runs: a workspace's command, or keys a frame says were pressed in it.
-  const posting = useRef<null | 'kit' | 'keys'>(null)
-  const togglePoint = () => {
-    pointMine.current = posting.current === null || (posting.current === 'keys' && navigator.userActivation.isActive)
-    setAnnotating((a) => !a)
-  }
-  const pointSendsNow = () => annotating && pointMine.current && navigator.userActivation.isActive
+  const togglePoint = () => setAnnotating((a) => !a)
   const sendPoint = () => {
     showAgent(true)
     // The panel mounts on the next frame when it was closed, and the note just added is in its list by then.
@@ -352,25 +342,11 @@ export function App() {
     else if (type === 'open-external') void bridge.openExternal(String(p.url))
     else if (type === 'toast') toast(String(p.text), p.tone)
     else if (type === 'connector-dialog') setDialog(p.preset ?? {})
-    else if (type === 'shortcut') {
-      posting.current = 'keys'
-      try {
-        shortcut(pressed(p))
-      } finally {
-        posting.current = null
-      }
-    }
+    else if (type === 'shortcut') shortcut(pressed(p))
     // A command by its id, from the kit (togglePoint, showTemplates, …): the same whatever keys it has.
     // Only those the kit offers: workspace code must not publish, fork, archive or delete on its own.
     else if (type === 'command' && p.id === 'command-bar') setBar('all')
-    else if (type === 'command' && KIT_COMMANDS.has(String(p.id))) {
-      posting.current = 'kit'
-      try {
-        commands.current.find((c) => c.id === p.id)?.run()
-      } finally {
-        posting.current = null
-      }
-    }
+    else if (type === 'command' && KIT_COMMANDS.has(String(p.id))) commands.current.find((c) => c.id === p.id)?.run()
   }
   // Back leaves the code for the workspace before it goes back a page in the workspace.
   const back = (id: string) => (inspecting[id] ? inspect(id, false) : frameOf(id).current?.send('back'))
@@ -892,7 +868,6 @@ export function App() {
     onRenaming: (on: boolean) => setRenaming(on ? w.id : null),
     onRename: (name: string) => rename(w, name),
     onAnnotate: setAnnotating,
-    pointSendsNow,
     sendPoint,
     notes: notes[w.id] ?? [],
     noteIds: screenNotes.map((n) => n.id),
@@ -1264,7 +1239,7 @@ interface PaneProps {
 // Monaco is big: the code inspector loads the first time someone opens it.
 const CodeInspector = lazy(() => import('./CodeInspector'))
 
-function WorkspaceView(p: { frame: { current: FrameHandle | null }; /** The agent panel, shown beside the workspace and under the title bar. Not in a pane: the window has one panel. */ side?: React.ReactNode; /** The agent fills the window; the workspace waits behind it. */ agentFull?: boolean; /** Set when the workspace is one of two in the window. */ pane?: PaneProps; /** In a pane, with more than one thing on screen: whether the keyboard is here (lit) or elsewhere (dim). */ tone?: Tone; /** Drawn over the workspace: where a workspace dragged out of the list can go. */ overlay?: React.ReactNode; ws: WorkspaceInfo; state: AppState; /** The buttons at the end of the title bar: Point, Agent and the ones every page has. */ tools?: React.ReactNode; /** The list of workspaces is open. */ switching: boolean; onSwitch: (from: HTMLElement) => void; /** Whether the title has the carets that open the list of workspaces: not when it is in a sidebar. A pane's always has them, to pick for that pane. */ switcher?: boolean; renaming: boolean; onRenaming: (on: boolean) => void; onRename: (name: string) => void; annotating: boolean; onAnnotate: (on: boolean) => void; /** Whether a note ticked to go right away may send itself; see pointMine in App. */ pointSendsNow: () => boolean; sendPoint: () => void; notes: Note[]; /** Every note on screen, in the agent's order, which the markers are numbered by. */ noteIds: string[]; setNotes: (f: (n: Note[]) => Note[]) => void; showAgent: () => void; onPost: (type: string, payload: Record<string, any>) => void; askAgent: (prompt: string) => void; toast: (t: string, tone?: Toast['tone']) => void; onOpen: (id: string) => void; onGone: () => void; /** Publish to the marketplace: its dialog opens. */ onPublish: () => void; /** A shortcut of the app pressed where the app does not see it, as in the code inspector. */ onShortcut: (combo: Combo) => void; /** Whether a new version may wait while the user is busy in the workspace: not while the keyboard is in the agent panel. */ mayHold: boolean; /** Its code is on screen in its place: <Workspace> › Inspect code. */ inspecting: boolean; onInspect: (on: boolean) => void; /** The code's editor, while it is open, for Find. */ inspector: { current: InspectorHandle | null } }) {
+function WorkspaceView(p: { frame: { current: FrameHandle | null }; /** The agent panel, shown beside the workspace and under the title bar. Not in a pane: the window has one panel. */ side?: React.ReactNode; /** The agent fills the window; the workspace waits behind it. */ agentFull?: boolean; /** Set when the workspace is one of two in the window. */ pane?: PaneProps; /** In a pane, with more than one thing on screen: whether the keyboard is here (lit) or elsewhere (dim). */ tone?: Tone; /** Drawn over the workspace: where a workspace dragged out of the list can go. */ overlay?: React.ReactNode; ws: WorkspaceInfo; state: AppState; /** The buttons at the end of the title bar: Point, Agent and the ones every page has. */ tools?: React.ReactNode; /** The list of workspaces is open. */ switching: boolean; onSwitch: (from: HTMLElement) => void; /** Whether the title has the carets that open the list of workspaces: not when it is in a sidebar. A pane's always has them, to pick for that pane. */ switcher?: boolean; renaming: boolean; onRenaming: (on: boolean) => void; onRename: (name: string) => void; annotating: boolean; onAnnotate: (on: boolean) => void; sendPoint: () => void; notes: Note[]; /** Every note on screen, in the agent's order, which the markers are numbered by. */ noteIds: string[]; setNotes: (f: (n: Note[]) => Note[]) => void; showAgent: () => void; onPost: (type: string, payload: Record<string, any>) => void; askAgent: (prompt: string) => void; toast: (t: string, tone?: Toast['tone']) => void; onOpen: (id: string) => void; onGone: () => void; /** Publish to the marketplace: its dialog opens. */ onPublish: () => void; /** A shortcut of the app pressed where the app does not see it, as in the code inspector. */ onShortcut: (combo: Combo) => void; /** Whether a new version may wait while the user is busy in the workspace: not while the keyboard is in the agent panel. */ mayHold: boolean; /** Its code is on screen in its place: <Workspace> › Inspect code. */ inspecting: boolean; onInspect: (on: boolean) => void; /** The code's editor, while it is open, for Find. */ inspector: { current: InspectorHandle | null } }) {
   const { ws, state } = p
   const [menu, setMenu] = useState(false)
   const [picking, setPicking] = useState(false)
@@ -1309,22 +1284,88 @@ function WorkspaceView(p: { frame: { current: FrameHandle | null }; /** The agen
   useEffect(syncFrame, [p.annotating, ids, path])
   // What a note can @ mention, as the agent's message box can.
   const mentions = usePointMentions(state.workspaces, state.connectors, ws.id, connectorIcon)
-  const syncMentions = () => frame.current?.send('annotate-mentions', { list: mentions })
-  useEffect(syncMentions, [mentions])
+  // The note box, drawn here over the frame by the element the frame says was picked (pointNote.ts). Only
+  // the user can type in it or press Send: workspace code can open it, but nothing more.
+  const note = useRef<PointNote | null>(null)
+  // Where the box's element is in the frame, as the frame last said. The frame itself can move in the window
+  // (the sidebar, the panes, the agent panel) without the frame noticing: the box follows that too.
+  const noteAt = useRef<unknown>(null)
+  const follow = useRef(0)
+  const closeNote = () => {
+    note.current?.close()
+    note.current = null
+    cancelAnimationFrame(follow.current)
+  }
+  const moveNote = () => {
+    const where = inWindow(noteAt.current)
+    if (where) note.current?.move(where.at, where.within)
+  }
+  const followFrame = () => {
+    let last = ''
+    const tick = () => {
+      if (!note.current) return
+      const f = frame.current?.rect()
+      const key = f ? `${f.left} ${f.top} ${f.right} ${f.bottom}` : ''
+      if (key !== last) {
+        last = key
+        moveNote()
+      }
+      follow.current = requestAnimationFrame(tick)
+    }
+    follow.current = requestAnimationFrame(tick)
+  }
+  useEffect(() => {
+    if (!p.annotating) closeNote()
+  }, [p.annotating])
+  useEffect(() => closeNote, [ws.id])
+  /** An element's rect in the frame, in the window; and the frame's own. */
+  const inWindow = (r: any) => {
+    const f = frame.current?.rect()
+    if (!f || !r) return null
+    const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+    return { at: { left: f.left + n(r.left), top: f.top + n(r.top), right: f.left + n(r.right), bottom: f.top + n(r.bottom) }, within: { left: f.left, top: f.top, right: f.right, bottom: f.bottom } }
+  }
+  const openNote = (m: Record<string, any>) => {
+    const where = inWindow(m.rect)
+    const item = m.item
+    if (!p.annotating || !where || !item || typeof item.id !== 'string') return
+    // A new pick in this frame replaces the box quietly: the frame has moved on to it already.
+    closeNote()
+    noteAt.current = m.rect
+    note.current = openPointNote({
+      what: String(m.what ?? item.tag ?? ''),
+      ...where,
+      mentions,
+      onCancel: () => {
+        note.current = null
+        frame.current?.send('annotate-close')
+      },
+      onAdd: (text, send) => {
+        note.current = null
+        frame.current?.send('annotate-close')
+        p.setNotes((n) => [...n, { ...item, note: text, page: path, workspace: ws.id }])
+        // Ticked "Trigger agent right away": the note (with any others on the list) goes now, with a message that
+        // points the agent at them. Sending needs a note to say what to do; the box does not offer it without one.
+        if (send && text) p.sendPoint()
+        else p.showAgent()
+      },
+    })
+    followFrame()
+  }
   const onFramePost = (type: string, m: Record<string, any>) => {
     if (type === 'title') {
       const at = String(m.path ?? path).split('?')[0]!
       setTitles((t) => (t[at] === String(m.title ?? '') ? t : { ...t, [at]: String(m.title ?? '') }))
     }
-    else if (type === 'ready') (syncFrame(), syncMentions())
+    // A page (re)loaded: a box open for an element of the one before has nothing to point at.
+    else if (type === 'ready') (closeNote(), syncFrame())
     else if (type === 'annotate-exit') p.onAnnotate(false)
-    else if (type === 'annotate-add') {
-      p.setNotes((n) => [...n, { ...m.item, page: path, workspace: ws.id }])
-      // Ticked "Trigger agent right away": the note (with any others on the list) goes now, with a message that points
-      // the agent at them. Workspace code can post the same flag, so the host also checks the user is the one pointing.
-      if (m.send && String(m.item?.note ?? '').trim() && p.pointSendsNow()) p.sendPoint()
-      else p.showAgent()
-    } else p.onPost(type, m)
+    else if (type === 'annotate-pick') openNote(m)
+    else if (type === 'annotate-at') {
+      noteAt.current = m.rect
+      moveNote()
+    } else if (type === 'annotate-close') closeNote()
+    else p.onPost(type, m)
   }
 
   const act = async (f: () => Promise<unknown>) => {
