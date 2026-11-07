@@ -151,6 +151,7 @@ export function createTools(store: Store, runner: Runner, schedules: Schedules, 
     const result = await store.idempotent('session_start', ctx.idempotencyKey ?? idempotency_key, rest, async () => {
       const provider = (await discoverProviders()).find((p) => p.name === input.harness)
       if (!provider?.available) throw problem('provider_unavailable', 'Provider is not available on this installation', 503)
+      if (input.connection_ids?.length && !provider.capabilities.connections) throw problem('unsupported_capability', `${provider.display_name} has no connector support`)
       const mode = input.config?.permission_mode
       if (mode && !provider.capabilities.permission_modes.includes(mode)) throw problem('unsupported_capability', `${provider.display_name} has no ${mode} permission mode`)
       const { session, run } = await store.startSession(rest as StartInput)
@@ -302,8 +303,11 @@ export function createTools(store: Store, runner: Runner, schedules: Schedules, 
     }),
   )
 
-  define('session_connections_set', 'Set the connections a session may use from its next run on', object({ id: uuid, connection_ids: array(uuid), urgent: bool }, ['id', 'connection_ids']), false, (input) =>
-    store.setGrants(input.id, input.connection_ids),
+  define('session_connections_set', 'Set the connections a session may use from its next run on', object({ id: uuid, connection_ids: array(uuid), urgent: bool }, ['id', 'connection_ids']), false, (input) => {
+      const session = store.getSession(input.id)
+      if (input.connection_ids.length && registered().find((p) => p.id === session.harness)?.capabilities.connections === false) throw problem('unsupported_capability', 'This provider has no connector support')
+      return store.setGrants(input.id, input.connection_ids)
+    },
   )
 
   // Shell commands and files, for what workspaces do without an agent.

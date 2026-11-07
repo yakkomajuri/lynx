@@ -1113,12 +1113,13 @@ export default async function ({ repo }) {
   check('Codex refuses server names its override keys cannot safely address', !!await throws(() => codexAcpConfig({ config: { permission_mode: 'ask' } }, ['server.with.dots'])))
   const { providers, providerById } = await load('src/agentd/providers/registry.ts')
   delete process.env.AGENT_ENABLE_FAKE
-  check('the registry offers Claude Code and Codex, and the test agent only when asked', same(providers().map((p) => p.id), ['claude', 'codex']))
+  check('the registry offers Claude Code, Codex and Pi, and the test agent only when asked', same(providers().map((p) => p.id), ['claude', 'codex', 'pi']))
   process.env.AGENT_ENABLE_FAKE = '1'
   check('the test agent is offered when enabled', !!providerById('fake'))
   delete process.env.AGENT_ENABLE_FAKE
   check('each provider says how its CLI resumes a conversation', same(providerById('claude').resume_command, ['claude', '--resume']) && same(providerById('codex').resume_command, ['codex', 'resume']))
-  check('both providers use ACP and keep warm sessions', providers().every((p) => p.transport === 'acp' && p.capabilities.warm))
+  check('Pi advertises only supported capabilities', !providerById('pi').capabilities.connections && !providerById('pi').capabilities.interactive_input && same(providerById('pi').capabilities.permission_modes, ['deny', 'allow']))
+  check('all providers use ACP and keep warm sessions', providers().every((p) => p.transport === 'acp' && p.capabilities.warm))
 }
 
 // ── Claude Code on Bedrock, Vertex or a gateway: how it reaches the API comes along, nothing else

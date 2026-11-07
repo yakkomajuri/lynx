@@ -6,6 +6,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { claudeExecutable } from './claude-bin'
 import { claudeProviderSettings } from './claude-settings'
+import { piLaunch } from './pi'
 import { codexBin } from './codex-bin'
 import { configuredCodexServers } from './codex-config'
 import { mcpName, type AgentSpec } from './types'
@@ -19,7 +20,8 @@ function claudeAdapter() {
   if (!entry) throw new Error('The Claude ACP adapter is missing from this build')
   return entry
 }
-export const acpMode = (spec: AgentSpec) => spec.harness === 'claude'
+// ACP modes are agent-defined; Pi uses them for thinking, not permissions.
+export const acpMode = (spec: AgentSpec) => spec.harness === 'pi' ? undefined : spec.harness === 'claude'
   ? ({ allow: 'bypassPermissions', auto: 'auto', ask: 'default', deny: 'default' } as const)[spec.config.permission_mode]
   : ({ allow: 'agent-full-access', auto: 'agent', ask: 'read-only', deny: 'read-only' } as const)[spec.config.permission_mode]
 
@@ -64,7 +66,9 @@ async function readOnlyTools(spec: AgentSpec, signal: AbortSignal) {
 }
 
 export async function acpLaunch(spec: AgentSpec, signal: AbortSignal) {
-  const env = { ...process.env }
+  signal.throwIfAborted()
+  let env = { ...process.env }
+  let cleanup = () => {}, instructionsConfigured = false
   delete env.NODE_COMPILE_CACHE
   for (const key of Object.keys(env)) if (key.startsWith('LYNX_ACP_HEADER_')) delete env[key]
   // The adapter itself is JavaScript; its provider children must not inherit Electron's Node mode.
@@ -86,10 +90,15 @@ export async function acpLaunch(spec: AgentSpec, signal: AbortSignal) {
     env.CODEX_PATH = codexBin()
     env.CODEX_CONFIG = JSON.stringify(codexAcpConfig(spec, await configuredCodexServers(spec.cwd, signal)))
     env.INITIAL_AGENT_MODE = acpMode(spec)
+  } else if (spec.harness === 'pi') {
+    const launch = piLaunch(spec, env)
+    env = launch.env
+    cleanup = launch.cleanup
+    instructionsConfigured = launch.instructionsConfigured
   } else throw new Error(`No ACP launcher for ${spec.harness}`)
-  signal.throwIfAborted()
-  const override = process.env[spec.harness === 'claude' ? 'AGENT_CLAUDE_ACP_BIN' : 'AGENT_CODEX_ACP_BIN']
-  const entry = override ?? (spec.harness === 'claude' ? claudeAdapter() : require.resolve('@agentclientprotocol/codex-acp'))
+  if (signal.aborted) { cleanup(); signal.throwIfAborted() }
+  const override = process.env[`AGENT_${spec.harness.toUpperCase()}_ACP_BIN`]
+  const entry = override ?? (spec.harness === 'claude' ? claudeAdapter() : require.resolve(spec.harness === 'pi' ? 'pi-acp' : '@agentclientprotocol/codex-acp'))
   const bootstrap = "delete process.env.ELECTRON_RUN_AS_NODE; const { pathToFileURL } = await import('node:url'); await import(pathToFileURL(process.argv[1]).href)"
-  return { command: override ?? process.execPath, args: override ? [] : ['--input-type=module', '--eval', bootstrap, '--', entry], env, meta, servers }
+  return { command: override ?? process.execPath, args: override ? [] : ['--input-type=module', '--eval', bootstrap, '--', entry], env, meta, servers, cleanup, instructionsConfigured }
 }

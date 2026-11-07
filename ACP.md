@@ -42,3 +42,36 @@ redaction, all permission modes, questions, failures and cancellation. `npm run 
 signed-in agents to check that Claude CLI arguments and environment have no connector credentials,
 authenticated connectors, new sessions, warm turns, model/effort selection and resume. It uses model
 quota and an isolated temporary working directory. `npm run check` includes the deterministic suite.
+
+## Pi
+
+Pi uses the published `pi-acp` adapter, pinned to 0.0.34. Install Pi 1.5.0 or newer
+(`npm install -g @earendil-works/pi-coding-agent`), run `pi` and use `/login` to
+configure an account. `AGENT_PI_BIN` can select a different Pi executable.
+This launch integration supports macOS and Linux. Model discovery uses Pi's
+metadata-only RPC request, with no model prompt.
+
+The [upstream adapter](https://github.com/svkozak/pi-acp#limitations) does not wire
+client MCP servers into Pi and has no ACP approval bridge. Lynx therefore offers
+Pi for local-file work, with read-only and full-access permission modes. The UI
+labels this restriction; automatic connector assignment skips providers without
+connector support, and the backend rejects explicit grants. Pi cannot run Lynx
+workspace-building or connector workflows. It is not an onboarding agent.
+
+Read-only sessions start Pi with `read,grep,find,ls`; full-access sessions also get
+`bash,edit,write`. Personal extensions, skills, prompt templates and native MCP
+servers are disabled in both modes. Session instructions use Pi's append-system-
+prompt flag. Temporary launch files are removed when the adapter exits. This
+limits the available tools; it does not create an OS sandbox.
+
+Streaming, tool cards, warm turns, resume, model selection, thinking settings and
+cancellation use the shared ACP code. Pi's ACP modes describe thinking effort,
+so the shared client does not mistake them for permission modes. ACP session IDs
+are adapter IDs; use Pi's own session picker to continue in its terminal UI.
+
+`npm run test:acp` covers the shared transport and capability refusals.
+`npm run test:pi` tests the real adapter and an installed Pi against a local fake
+model with isolated state. It checks discovery, instructions, actual file reads,
+refused writes in read-only mode, full-access writes, warm model changes, resume
+and cancellation. `AGENT_PI_BIN` selects the tested install. After building, run
+`scripts/pi-smoke.mjs --built` under Electron's Node mode to test the shipped chunk.

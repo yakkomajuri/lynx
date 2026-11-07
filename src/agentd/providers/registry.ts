@@ -2,6 +2,7 @@
 // the tools' schemas and the app read what they need from here, and decide by capability rather
 // than by which agent it is. A new harness is one entry here plus its adapter.
 import { claudeExecutable } from './claude-bin'
+import { piBin } from './pi'
 import { codexBin } from './codex-bin'
 import type { AgentSpec, Ask, BrowserSignIn, Emit, ProviderModel } from './types'
 
@@ -95,6 +96,15 @@ export const PROVIDERS: ProviderDefinition[] = [
     login_command: () => [codexBin(), 'login'],
     sign_in: async () => (await import('./codex-login')).codexSignIn(),
     discover: async () => (await import('./codex-discover')).discoverCodex(),
+    session: async (spec, io) => (await import('./acp')).acpSession(spec, io),
+  },
+  {
+    id: 'pi',
+    name: 'Pi',
+    transport: 'acp',
+    capabilities: { resume: true, warm: true, interactive_input: false, connections: false, input: { approvals: false, questions: false, secret_questions: false, arbitrary_dialogs: false, mcp_elicitation: false }, permission_modes: ['deny', 'allow'] },
+    login_command: () => [piBin()],
+    discover: async () => (await import('./pi')).discoverPi(),
     session: async (spec, io) => (await import('./acp')).acpSession(spec, io),
   },
   {

@@ -62,7 +62,8 @@ export async function acpSession(first: AgentSpec, io: SessionIO): Promise<Sessi
   io.signal.addEventListener('abort', abort, { once: true })
   child.on('error', (error) => connection.close(error))
   child.stdin.on('error', (error) => connection.close(error))
-  child.on('exit', (code, signal) => connection.close(new Error(`ACP adapter exited (${signal ?? code})`)))
+  child.on('exit', (code, signal) => { launch.cleanup(); connection.close(new Error(`ACP adapter exited (${signal ?? code})`)) })
+  child.on('error', launch.cleanup)
   child.stderr.on('data', (data) => process.stderr.write(data))
   void connection.closed.then(close)
   const control = { cancellationSignal: AbortSignal.any([io.signal, AbortSignal.timeout(30000)]), stopWaitingOnCancel: true }
@@ -77,10 +78,10 @@ export async function acpSession(first: AgentSpec, io: SessionIO): Promise<Sessi
     }, control)
     if (init.protocolVersion !== PROTOCOL_VERSION) throw new Error(`Unsupported ACP version: ${init.protocolVersion}`)
     if (first.connections?.length && !init.agentCapabilities?.mcpCapabilities?.http) throw new Error('ACP adapter does not support HTTP connectors')
-    if (first.config.instructions && !init.agentCapabilities?.sessionCapabilities?.systemPrompt) throw new Error('ACP adapter does not support session instructions')
+    if (first.config.instructions && !launch.instructionsConfigured && !init.agentCapabilities?.sessionCapabilities?.systemPrompt) throw new Error('ACP adapter does not support session instructions')
     const params: NewSessionRequest = {
       cwd: first.cwd, mcpServers: launch.servers, _meta: launch.meta,
-      ...(first.config.instructions ? { systemPrompt: { mode: 'append' as const, content: [{ type: 'text' as const, text: first.config.instructions }] } } : {}),
+      ...(first.config.instructions && !launch.instructionsConfigured ? { systemPrompt: { mode: 'append' as const, content: [{ type: 'text' as const, text: first.config.instructions }] } } : {}),
     }
     let state: NewSessionResponse | LoadSessionResponse
     if (first.provider_session_id) {
@@ -94,8 +95,8 @@ export async function acpSession(first: AgentSpec, io: SessionIO): Promise<Sessi
     }
     options = state.configOptions ?? options
     const modeId = acpMode(first)
-    if (!state.modes?.availableModes.some((mode) => mode.id === modeId)) throw new Error(`ACP adapter does not offer the required permission mode: ${modeId}`)
-    await connection.agent.request('session/set_mode', { sessionId, modeId }, control)
+    if (modeId && !state.modes?.availableModes.some((mode) => mode.id === modeId)) throw new Error(`ACP adapter does not offer the required permission mode: ${modeId}`)
+    if (modeId) await connection.agent.request('session/set_mode', { sessionId, modeId }, control)
     currentMode = modeId
     await io.emit({ type: 'provider_session', payload: { id: sessionId } })
   } catch (error) {
@@ -113,7 +114,7 @@ export async function acpSession(first: AgentSpec, io: SessionIO): Promise<Sessi
       try {
         io.signal.throwIfAborted()
         const modeId = acpMode(next)
-        if (currentMode !== modeId) {
+        if (modeId && currentMode !== modeId) {
           await connection.agent.request('session/set_mode', { sessionId: id, modeId }, {
             cancellationSignal: AbortSignal.any([io.signal, AbortSignal.timeout(15000)]), stopWaitingOnCancel: true,
           })

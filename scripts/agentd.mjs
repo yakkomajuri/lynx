@@ -47,6 +47,7 @@ const startAgentd = () =>
         AGENT_ENABLE_FAKE: '1',
         // Codex is the stand-in, so its browser sign-in runs end to end without an account.
         AGENT_CODEX_BIN: join(process.cwd(), 'scripts', 'fixture-codex.mjs'),
+        AGENT_PI_BIN: join(process.cwd(), 'scripts', 'fixture-pi.mjs'),
         FAKE_CODEX_OUTCOME: join(data, 'codex-outcome'),
         AGENTD_WARM: 'claude,fake',
         AGENTD_IDLE_MS: '3000',
@@ -374,6 +375,13 @@ try {
   check('admin creates a connection', created.status === 201 && created.body.id, created)
   check('admin reads it back', (await admin('GET', `/v1/connections/${created.body.id}`)).status === 200)
   check('tools never show headers', !JSON.stringify(await call('connection_list')).includes('hub-secret'))
+  const pi = await call('session_start', { harness: 'pi' })
+  check('Pi creates local-file sessions in read-only mode', pi.session.permission_mode === 'deny')
+  check('Pi rejects connectors at session creation', (await fails(() => call('session_start', { harness: 'pi', connection_ids: [created.body.id] }))) === 'unsupported_capability')
+  check('Pi rejects connector changes on existing sessions', (await fails(() => call('session_connections_set', { id: pi.session.id, connection_ids: [created.body.id] }))) === 'unsupported_capability')
+  check('Pi rejects unsupported approval modes', (await fails(() => call('session_start', { harness: 'pi', config: { permission_mode: 'ask' } }))) === 'unsupported_capability')
+  check('Pi cannot switch into an unsupported approval mode', (await fails(() => call('session_send', { id: pi.session.id, prompt: 'hello', permission_mode: 'ask' }))) === 'unsupported_capability')
+
   const conn = await call('session_start', { harness: 'fake', connection_ids: [created.body.id] })
   const used = await wait((await call('session_send', { id: conn.session.id, prompt: 'use the connector' })).id)
   check('connector run completes', used.status === 'completed', used)

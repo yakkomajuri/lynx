@@ -1300,6 +1300,7 @@ export const AgentPanel = forwardRef<AgentPanelHandle, { /** Whether the keyboar
                         <Pick label="Effort" heading="How hard it thinks" value={effort} choices={efforts.map((e) => ({ value: e, name: `${effortName(e)} effort` }))} onPick={(e) => pick({ effort: e })} />
                       </>
                     )}
+                    {providers.find((p) => p.name === activeHarness)?.capabilities?.connections === false && <span title="This agent works with local files. Lynx connectors are unavailable.">Local files only</span>}
                     {modes.length > 1 && (
                       <>
                         <i aria-hidden>·</i>

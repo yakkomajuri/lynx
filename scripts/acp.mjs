@@ -28,7 +28,7 @@ let count = 0
 function worker(harness, config = {}, extra = {}, fixtureCase = '') {
   const log = join(dir, `log-${count++}.jsonl`)
   const spec = { harness, cwd: dir, prompt: 'hello', provider_session_id: null, warm: true, connections: [{ id: 'ab', url: `http://127.0.0.1:${hub.address().port}/mcp`, headers: { authorization: 'Bearer fixture-secret' } }], config: { permission_mode: 'ask', instructions: 'Test instructions', model: 'model-a', effort: 'high', ...config }, ...extra }
-  const child = spawn(process.execPath, [join(dir, 'worker.mjs')], { env: { ...process.env, AGENT_CLAUDE_BIN: process.execPath, AGENT_CODEX_BIN: join(process.cwd(), 'scripts/fixture-codex.mjs'), AGENT_CLAUDE_ACP_BIN: fixture, AGENT_CODEX_ACP_BIN: fixture, ACP_FIXTURE_LOG: log, ACP_FIXTURE_CASE: fixtureCase }, stdio: ['pipe', 'pipe', 'pipe'] })
+  const child = spawn(process.execPath, [join(dir, 'worker.mjs')], { env: { ...process.env, AGENT_CLAUDE_BIN: process.execPath, AGENT_CODEX_BIN: join(process.cwd(), 'scripts/fixture-codex.mjs'), AGENT_CLAUDE_ACP_BIN: fixture, AGENT_CODEX_ACP_BIN: fixture, AGENT_PI_ACP_BIN: fixture, ACP_FIXTURE_LOG: log, ACP_FIXTURE_CASE: fixtureCase }, stdio: ['pipe', 'pipe', 'pipe'] })
   workers.add(child)
   const events = []
   let stderr = '', ended = false, pending
@@ -56,6 +56,28 @@ function worker(harness, config = {}, extra = {}, fixtureCase = '') {
   return { spec, events, send, closed, wait, requests: () => readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse), stop: async () => { child.stdin.end(); await closed } }
 }
 try {
+  {
+    const w = worker('pi', { permission_mode: 'deny' }, { connections: [] })
+    await w.wait(() => w.events.some((e) => e.type === 'turn_done'))
+    assert.equal(w.events.find((e) => e.type === 'agent_completed').payload.success, true)
+    assert(!w.requests().some((r) => r.method === 'session/set_mode'), 'Pi modes are thinking levels, not permissions')
+    assert.equal(w.requests().find((r) => r.method === 'session/new').params.systemPrompt, undefined)
+    assert(w.requests().some((r) => r.method === 'session/set_config_option' && r.params.configId === 'effort'))
+    w.send({ type: 'turn', spec: { ...w.spec, prompt: 'next', config: { ...w.spec.config, model: 'model-b' } } })
+    await w.wait(() => w.events.filter((e) => e.type === 'turn_done').length === 2)
+    assert.equal(w.requests().filter((r) => r.method === 'session/new').length, 1)
+    await w.stop()
+    const loaded = worker('pi', { permission_mode: 'allow' }, { connections: [], provider_session_id: 'acp-session' })
+    await loaded.wait(() => loaded.events.some((e) => e.type === 'turn_done'))
+    assert(loaded.requests().some((r) => r.method === 'session/load'))
+    await loaded.stop()
+    for (const extra of [{ connections: [{ id: 'unsupported', url: 'http://127.0.0.1', headers: {} }] }, { config: { permission_mode: 'ask' } }]) {
+      const rejected = worker('pi', { permission_mode: 'deny' }, { connections: [], ...extra })
+      await rejected.closed
+      assert.equal(rejected.events.find((e) => e.type === 'agent_completed').payload.success, false)
+    }
+    console.log('ok: Pi shares ACP streaming, warm turns, resume and model/effort controls; unsupported grants and modes fail closed')
+  }
   for (const harness of ['claude', 'codex']) {
     const w = worker(harness)
     await w.wait(() => w.events.some((e) => e.type === 'turn_done'))
@@ -132,7 +154,7 @@ try {
     const url = `http://127.0.0.1:${hub.address().port}/mcp`
     const headers = { authorization: 'Bearer fixture-secret', 'x-test': 'one' }
     for (const id of ['a', 'b']) store.q("INSERT INTO connections (id, name, url, headers, created_at, updated_at) VALUES (?, ?, ?, ?, '', '')").run(id, id, url, JSON.stringify(headers))
-    const runner = createRunner(store, { node: process.execPath, worker: join(dir, 'worker.mjs'), concurrency: 1, warm: [harness], env: { AGENT_CLAUDE_BIN: process.execPath, AGENT_CODEX_BIN: join(process.cwd(), 'scripts/fixture-codex.mjs'), AGENT_CLAUDE_ACP_BIN: fixture, AGENT_CODEX_ACP_BIN: fixture, ACP_FIXTURE_LOG: log } })
+    const runner = createRunner(store, { node: process.execPath, worker: join(dir, 'worker.mjs'), concurrency: 1, warm: [harness], env: { AGENT_CLAUDE_BIN: process.execPath, AGENT_CODEX_BIN: join(process.cwd(), 'scripts/fixture-codex.mjs'), AGENT_CLAUDE_ACP_BIN: fixture, AGENT_CODEX_ACP_BIN: fixture, AGENT_PI_ACP_BIN: fixture, ACP_FIXTURE_LOG: log } })
     const requests = () => readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse)
     const complete = async (run) => {
       const deadline = Date.now() + 15000

@@ -74,6 +74,7 @@ export interface Provider {
 const names = new Map<string, string>([
   ['claude', 'Claude Code'],
   ['codex', 'Codex'],
+  ['pi', 'Pi'],
 ])
 export const harnessName = (h: string) => names.get(h) ?? h
 const EFFORTS: Record<string, string> = { minimal: 'Minimal', low: 'Low', medium: 'Medium', high: 'High', xhigh: 'Extra high', max: 'Max', ultra: 'Ultra' }
@@ -166,10 +167,12 @@ export async function resolveGrants(names?: string[]) {
 export const agents = {
   /** Start a session and its first run. Returns { session, run }. */
   async start(o: StartOptions) {
-    const grants = await resolveGrants()
+    const { providers } = await call<{ providers: Provider[] }>('agents', 'server_status')
+    const supportsConnectors = providers.find((p) => p.name === (o.harness ?? 'claude'))?.capabilities?.connections !== false
+    const grants = supportsConnectors ? await resolveGrants() : { connection_ids: [], note: '\nThis agent has no Lynx connector access. Work with local files and explain when a task needs connectors.' }
     const aliases = Object.entries(workspace().connectors)
-    if (aliases.length) grants.note += `\nIn this workspace: ${aliases.map(([alias, id]) => `"${alias}" means the "${id}" connector`).join('; ')}.`
-    if (grants.note) grants.note += '\nConnectors added later are available too; the app connector\'s connector_list gives each one\'s agent_connection_id, and its server is named mcp__connection_<that id without dashes>.'
+    if (supportsConnectors && aliases.length) grants.note += `\nIn this workspace: ${aliases.map(([alias, id]) => `"${alias}" means the "${id}" connector`).join('; ')}.`
+    if (supportsConnectors && grants.note) grants.note += '\nConnectors added later are available too; the app connector\'s connector_list gives each one\'s agent_connection_id, and its server is named mcp__connection_<that id without dashes>.'
     const instructions = `${o.instructions ?? ''}${grants.note}`.trim()
     return call<{ session: { id: string }; run: { id: string; status: string } | null }>('agents', 'session_start', {
       harness: o.harness ?? 'claude',
