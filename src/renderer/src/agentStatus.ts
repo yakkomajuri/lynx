@@ -12,5 +12,5 @@ export function agentStatus(agents: { title: string; state: 'ready' | 'out' | 'm
     return { ok: true, text: `${names(ready)} ${ready.length > 1 ? 'are' : 'is'} ready.${rest ? ` ${rest}` : ''}` }
   }
   if (out.length) return { ok: false, text: `Sign in to ${out.map((a) => a.title).join(' or ')} to continue.` }
-  return { ok: false, text: 'Lynx needs Claude Code or Codex to be installed and logged in on this Mac to work.' }
+  return { ok: false, text: 'Lynx needs an installed agent with a model provider configured on this Mac to work.' }
 }

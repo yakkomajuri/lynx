@@ -6,6 +6,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { claudeExecutable } from './claude-bin'
 import { claudeProviderSettings } from './claude-settings'
+import { opencodeLaunch } from './opencode-launch'
 import { codexBin } from './codex-bin'
 import { configuredCodexServers } from './codex-config'
 import { mcpName, type AgentSpec } from './types'
@@ -19,7 +20,7 @@ function claudeAdapter() {
   if (!entry) throw new Error('The Claude ACP adapter is missing from this build')
   return entry
 }
-export const acpMode = (spec: AgentSpec) => spec.harness === 'claude'
+export const acpMode = (spec: AgentSpec) => spec.harness === 'opencode' ? 'lynx' : spec.harness === 'claude'
   ? ({ allow: 'bypassPermissions', auto: 'auto', ask: 'default', deny: 'default' } as const)[spec.config.permission_mode]
   : ({ allow: 'agent-full-access', auto: 'agent', ask: 'read-only', deny: 'read-only' } as const)[spec.config.permission_mode]
 
@@ -43,7 +44,7 @@ export function codexAcpConfig(spec: AgentSpec, configured: string[]) {
 
 /** Claude's ACP adapter accepts SDK startup options as metadata. Only declared read-only tools
  * are pre-approved; listing failures leave the connector behind the normal permission check. */
-async function readOnlyTools(spec: AgentSpec, signal: AbortSignal) {
+async function readOnlyTools(spec: AgentSpec, signal: AbortSignal, toolName = (server: string, tool: string) => `mcp__${server}__${tool}`) {
   return (await Promise.all((spec.connections ?? []).map(async (connection) => {
     const client = new Client({ name: 'lynx-permissions', version: '1' })
     try {
@@ -55,7 +56,7 @@ async function readOnlyTools(spec: AgentSpec, signal: AbortSignal) {
       let cursor: string | undefined
       do {
         const page = await client.listTools({ cursor }, { signal: timeout })
-        for (const tool of page.tools) if (tool.annotations?.readOnlyHint === true) names.push(`mcp__${mcpName(connection.id)}__${tool.name}`)
+        for (const tool of page.tools) if (tool.annotations?.readOnlyHint === true) names.push(toolName(mcpName(connection.id), tool.name))
         cursor = page.nextCursor
       } while (cursor)
       return names
@@ -72,6 +73,12 @@ export async function acpLaunch(spec: AgentSpec, signal: AbortSignal) {
   if (process.versions.electron) env.ELECTRON_RUN_AS_NODE = '1'
   else delete env.ELECTRON_RUN_AS_NODE
   const servers = acpServers(spec)
+  if (spec.harness === 'opencode') {
+    delete env.ELECTRON_RUN_AS_NODE
+    const launch = await opencodeLaunch(spec, env, await readOnlyTools(spec, signal, (server, tool) => `${server}_${tool}`), signal)
+    const override = process.env.AGENT_OPENCODE_ACP_BIN
+    return { ...launch, ...(override ? { command: override, args: [] } : {}), servers, meta: undefined }
+  }
   let meta: Record<string, unknown> | undefined
   if (spec.harness === 'claude') {
     const executable = claudeExecutable()
@@ -91,5 +98,5 @@ export async function acpLaunch(spec: AgentSpec, signal: AbortSignal) {
   const override = process.env[spec.harness === 'claude' ? 'AGENT_CLAUDE_ACP_BIN' : 'AGENT_CODEX_ACP_BIN']
   const entry = override ?? (spec.harness === 'claude' ? claudeAdapter() : require.resolve('@agentclientprotocol/codex-acp'))
   const bootstrap = "delete process.env.ELECTRON_RUN_AS_NODE; const { pathToFileURL } = await import('node:url'); await import(pathToFileURL(process.argv[1]).href)"
-  return { command: override ?? process.execPath, args: override ? [] : ['--input-type=module', '--eval', bootstrap, '--', entry], env, meta, servers }
+  return { command: override ?? process.execPath, args: override ? [] : ['--input-type=module', '--eval', bootstrap, '--', entry], env, meta, servers, cleanup: () => {}, instructionsConfigured: false }
 }

@@ -3,13 +3,16 @@ import type { Emit } from './types'
 import type { ToolInvocation, ToolKind } from './events'
 
 const kinds: Record<string, ToolKind> = { execute: 'command', read: 'file_read', edit: 'file_change', delete: 'file_change', move: 'file_change', search: 'search', fetch: 'web', other: 'other' }
-export function acpTool(call: ToolCall): ToolInvocation {
-  const name = call.name ?? call.title
+export function acpTool(call: ToolCall, servers: string[] = []): ToolInvocation {
+  let name = call.name ?? call.title
+  // OpenCode uses <server>_<tool>; the UI uses the same MCP name for every harness.
+  const server = servers.find((server) => name.startsWith(`${server}_`))
+  if (server) name = `mcp__${server}__${name.slice(server.length + 1)}`
   return { id: call.toolCallId, kind: name.startsWith('mcp__') ? 'mcp' : (kinds[call.kind ?? 'other'] ?? 'other'), name, input: call.rawInput ?? { locations: call.locations ?? [] } }
 }
 
 /** ACP deltas are previews. Save complete messages at message/tool boundaries and at turn end. */
-export function acpEvents(emit: Emit) {
+export function acpEvents(emit: Emit, servers: string[] = []) {
   let text = '', partial = '', messageId: string | null | undefined, flushedAt = 0
   const calls = new Map<string, ToolCall>()
   const finished = new Set<string>()
@@ -48,7 +51,7 @@ export function acpEvents(emit: Emit) {
         calls.set(call.toolCallId, call)
         // Partial updates replace supplied fields; omitted input/output remains from the first event.
         if (!previous || update.rawInput !== undefined || update.name !== undefined) {
-          const invocation = acpTool(call)
+          const invocation = acpTool(call, servers)
           await emit({ type: 'tool_invocation', payload: invocation, text: JSON.stringify(invocation.input) })
         }
         if ((call.status === 'completed' || call.status === 'failed') && !finished.has(call.toolCallId)) {
