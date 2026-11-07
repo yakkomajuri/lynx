@@ -108,74 +108,10 @@ const hub = createServer(async (req, res) => {
 await new Promise((r) => hub.listen(0, '127.0.0.1', r))
 const hubUrl = `http://127.0.0.1:${hub.address().port}/mcp/docs`
 
-// The Claude adapter against a stand-in SDK, so Claude Code can be made to exit at a chosen moment.
-await build({
-  ...opts,
-  packages: undefined,
-  external: ['@modelcontextprotocol/*'],
-  entryPoints: ['src/agentd/providers/claude.ts'],
-  outfile: join(out, 'claude.mjs'),
-  plugins: [{
-    name: 'stand-in',
-    setup(b) {
-      b.onResolve({ filter: /^@anthropic-ai\/claude-agent-sdk$/ }, () => ({ path: 'sdk', namespace: 'stand-in' }))
-      b.onResolve({ filter: /claude-bin$/ }, () => ({ path: 'bin', namespace: 'stand-in' }))
-      b.onLoad({ filter: /^sdk$/, namespace: 'stand-in' }, () => ({ contents: `
-        export const query = () => {
-          let close
-          const gone = new Promise((r) => (close = r))
-          return {
-            async *[Symbol.asyncIterator]() { await gone },
-            // Claude Code exits while it answers, before the turn has started waiting.
-            setPermissionMode: async () => { close(); await new Promise((r) => setTimeout(r, 20)) },
-            setModel: async () => {}, applyFlagSettings: async () => {}, setMcpServers: async () => ({ errors: {} }), close: () => close(),
-          }
-        }` }))
-      b.onLoad({ filter: /^bin$/, namespace: 'stand-in' }, () => ({ contents: `export const claudeExecutable = () => '/bin/true'` }))
-    },
-  }],
-})
+// Provider transport checks live in scripts/acp.mjs.
 await build({ ...opts, entryPoints: ['src/agentd/providers/redact.ts'], outfile: join(out, 'redact.mjs') })
-await build({ ...opts, entryPoints: ['src/agentd/providers/codex.ts'], outfile: join(out, 'codex.mjs') })
 
 try {
-  console.log('the Claude adapter')
-  const { claudeSession } = await import(join(out, 'claude.mjs'))
-  const session = await claudeSession({ harness: 'claude', cwd: data, prompt: 'hi', provider_session_id: null, config: { permission_mode: 'deny' } }, async () => {}, new AbortController().signal, async () => ({}))
-  const outcome = await Promise.race([session.turn({ harness: 'claude', cwd: data, prompt: 'hi', provider_session_id: null, config: { permission_mode: 'deny' } }).then(() => 'finished', (e) => e.message), sleep(2000).then(() => 'hung')])
-  check('a turn fails at once if Claude Code exits while it is being set up', outcome === 'Claude Code exited', outcome)
-
-  console.log('connector tools and permission modes')
-  const { connectorRules } = await import(join(out, 'claude.mjs'))
-  const { codexThreadSettings, answerCodexRequest } = await import(join(out, 'codex.mjs'))
-  const granted = { id: '0c485a22-3817-4452-af7a-f49e192048e3', url: 'http://127.0.0.1:1/mcp/agents', headers: {} }
-  const mcpServer = 'connection_0c485a2238174452af7af49e192048e3'
-  const withMode = (permission_mode) => ({ harness: 'x', cwd: data, prompt: 'p', provider_session_id: null, connections: [granted], config: { permission_mode } })
-  const mcpStatus = [
-    { name: mcpServer, status: 'connected', tools: [{ name: 'file_read', annotations: { readOnly: true } }, { name: 'exec', annotations: { readOnly: false } }, { name: 'file_write' }] },
-    { name: 'someone_elses', status: 'connected', tools: [{ name: 'list', annotations: { readOnly: true } }] },
-  ]
-  check('Claude: with full access, every connector tool is pre-approved', JSON.stringify(connectorRules(withMode('allow'), mcpStatus)) === JSON.stringify([`mcp__${mcpServer}`]))
-  for (const mode of ['ask', 'auto', 'deny'])
-    check(`Claude: in ${mode}, only read-only tools of granted connectors are pre-approved`, JSON.stringify(connectorRules(withMode(mode), mcpStatus)) === JSON.stringify([`mcp__${mcpServer}__file_read`]), JSON.stringify(connectorRules(withMode(mode), mcpStatus)))
-  check('Claude: before the connectors are up, nothing is pre-approved outside full access', connectorRules(withMode('ask')).length === 0 && connectorRules(withMode('deny')).length === 0)
-  const approvalMode = (mode) => codexThreadSettings(withMode(mode)).config.mcp_servers[mcpServer].default_tools_approval_mode
-  check('Codex: connector tools are pre-approved only with full access', approvalMode('allow') === 'approve' && approvalMode('ask') === 'auto' && approvalMode('deny') === 'auto', [approvalMode('allow'), approvalMode('ask'), approvalMode('deny')].join())
-  const elicitation = { method: 'mcpServer/elicitation/request', params: { threadId: 't', serverName: mcpServer, mode: 'form', message: `Allow the ${mcpServer} MCP server to run tool "exec"?`, requestedSchema: { type: 'object', properties: {} }, _meta: { codex_approval_kind: 'mcp_tool_call', tool_params: { command: 'ls' } } } }
-  const prompted = []
-  const askWith = (decision) => async (kind, payload) => (prompted.push({ kind, payload }), { decision })
-  check('Codex: with full access, a connector tool approval is accepted', (await answerCodexRequest(elicitation, withMode('allow'), askWith('deny'), async () => {})).action === 'accept' && !prompted.length)
-  check('Codex: read only, a connector tool approval is declined without asking', (await answerCodexRequest(elicitation, withMode('deny'), askWith('allow'), async () => {})).action === 'decline' && !prompted.length)
-  const accepted = await answerCodexRequest(elicitation, withMode('ask'), askWith('allow'), async () => {})
-  check('Codex: asking first, a connector tool approval becomes an approval for the user', accepted.action === 'accept' && prompted[0]?.kind === 'approval' && prompted[0].payload.tool_name === 'exec', JSON.stringify(prompted))
-  check('Codex: and is declined when the user denies it', (await answerCodexRequest(elicitation, withMode('ask'), askWith('deny'), async () => {})).action === 'decline')
-  const auto = codexThreadSettings(withMode('auto'))
-  check('Codex: auto is --approve-for-me: its reviewer settles approvals, and it writes in its own folder', auto.approvalsReviewer === 'auto_review' && auto.approvalPolicy === 'on-request' && auto.sandbox === 'workspace-write' && approvalMode('auto') === 'auto', JSON.stringify([auto.approvalsReviewer, auto.approvalPolicy, auto.sandbox]))
-  check('Codex: the other modes leave approvals to the user', ['deny', 'ask', 'allow'].every((m) => codexThreadSettings(withMode(m)).approvalsReviewer === 'user'))
-  prompted.length = 0
-  check('Codex: in auto, an approval its reviewer passes on goes to the user', (await answerCodexRequest(elicitation, withMode('auto'), askWith('allow'), async () => {})).action === 'accept' && prompted[0]?.kind === 'approval')
-  check('Codex: an elicitation that is not an approval is still unsupported', !!(await fails(() => answerCodexRequest({ ...elicitation, params: { ...elicitation.params, _meta: {} } }, withMode('ask'), askWith('allow'), async () => {}))))
-
   console.log('redaction')
   const { redactKnown, redactCut } = await import(join(out, 'redact.mjs'))
   check('overlapping secrets are both masked', !/fg|cd|ef/.test(redactKnown('[abcdef]', ['abcd', 'cdef'])), redactKnown('[abcdef]', ['abcd', 'cdef']))
