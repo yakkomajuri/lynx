@@ -188,7 +188,7 @@ const { session } = await agents.start({
   prompt: 'Review PR #42 in acme/web and summarise the risk',
   permission: 'allow',           // 'allow' | 'ask' | 'deny': these govern the agent's own tools only.
                                  // Connectors work in all three and can change things.
-  harness: 'claude',             // or 'codex'
+  harness: 'claude',             // or 'codex' or 'opencode'
   cwd: '/abs/path',              // optional working directory
   labels: { kind: 'pr-review', pr: '42' },   // find it again with useSessions(labels)
 })

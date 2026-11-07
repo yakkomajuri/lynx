@@ -1,5 +1,5 @@
 // The first-run screen: before a new install's window shows the app, five steps over all of it.
-// Welcome; Lynx runs on the user's own Claude Code or Codex (one installed and signed in lets them
+// Welcome; Lynx runs on the user's own Claude Code, Codex or OpenCode (one installed and signed in lets them
 // on); what Lynx does; whether to turn voice input on (its model downloads meanwhile); and connecting the services they use, by picking them or by saying so to an
 // agent whose work shows as one line a step and a card per connector, not as a chat. That agent's
 // conversation is the onboarding one (onboarding.ts): opening Lynx carries it on in the panel.
@@ -37,10 +37,11 @@ const FIRST_RUN_VOICE_MODEL = 'parakeet'
 /** Its download, as the switch says it: to the nearest 10 MB. */
 const FIRST_RUN_VOICE_SIZE = `${Math.round(voiceModel(FIRST_RUN_VOICE_MODEL).download / 1e7) * 10}MB`
 
-/** The two agents Lynx runs, and where each says how to install it. */
+/** The agents Lynx runs, and where each says how to install it. */
 const AGENTS = [
   { name: 'claude', title: 'Claude Code', docs: 'https://code.claude.com/docs/en/setup#install-claude-code' },
   { name: 'codex', title: 'Codex', docs: 'https://learn.chatgpt.com/docs/codex/cli#getting-started' },
+  { name: 'opencode', title: 'OpenCode', docs: 'https://opencode.ai/docs/' },
 ]
 
 /** Where to ask for an agent Lynx does not run yet: the project's GitHub issues. */
@@ -313,10 +314,10 @@ function Agents({ onReady }: { onReady: (ready: boolean) => void }) {
   return (
     <section className="fr-slide fr-anchored fr-agents-step">
       <h2 className="fr-in">
-        Lynx runs <u>locally</u>, using your own Claude Code or Codex
+        Lynx runs <u>locally</u>, using your own Claude Code, Codex or OpenCode
       </h2>
       <p className="fr-sub fr-in" style={{ '--d': 200 } as React.CSSProperties}>
-        Use your own harnesses with your existing subscriptions.
+        Use your existing accounts and model providers.
       </p>
       {!loading && (
         <div className="fr-agents">

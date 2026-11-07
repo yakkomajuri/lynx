@@ -35,6 +35,8 @@ jobs:
         run: npm test
       - name: Agent backend integration tests
         run: npm run test:agents
+      - name: OpenCode native API tests
+        run: npm run test:opencode
       - name: Build
         # The renderer bundle (Monaco and its language workers) needs more than
         # the ~2 GB heap Node picks by default on the 7 GB runner.

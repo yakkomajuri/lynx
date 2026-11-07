@@ -2,6 +2,7 @@
 // the tools' schemas and the app read what they need from here, and decide by capability rather
 // than by which agent it is. A new harness is one entry here plus its adapter.
 import { claudeExecutable } from './claude-bin'
+import { opencodeBin } from './opencode-bin'
 import { codexBin } from './codex-bin'
 import type { AgentSpec, Ask, BrowserSignIn, Emit, ProviderModel } from './types'
 
@@ -99,6 +100,19 @@ export const PROVIDERS: ProviderDefinition[] = [
     session: async (_spec, io) => {
       const { runCodex } = await import('./codex')
       return { turn: (s) => runCodex(s, io.emit, io.signal, io.ask), close: () => {} }
+    },
+  },
+  {
+    id: 'opencode',
+    name: 'OpenCode',
+    transport: 'http',
+    capabilities: { resume: true, warm: false, interactive_input: true, connections: true, input, permission_modes: ['deny', 'ask', 'allow'] },
+    resume_command: ['opencode', '--session'],
+    login_command: () => [opencodeBin(), 'auth', 'login'],
+    discover: async () => (await import('./opencode-discover')).discoverOpenCode(),
+    session: async (_spec, io) => {
+      const { runOpenCode } = await import('./opencode')
+      return { turn: (spec) => runOpenCode(spec, io), close: () => {} }
     },
   },
   {
