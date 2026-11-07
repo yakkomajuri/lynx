@@ -2,7 +2,7 @@
 //   npm run dist              local smoke-test build; no marketplace network check
 //   npm run dist -- --release release build; requires a ready shipped marketplace
 // Agents run on agentd, inside the app, on Electron's own Node. They are the user's own: agentd runs
-// the `claude` and `codex` installed on their machine.
+// pinned ACP adapters with the `claude` and `codex` installed on their machine.
 //
 // Signing: with no Developer ID the app is signed ad hoc and macOS warns on first open. To sign and
 // notarize, set CSC_NAME (the "Developer ID Application: …" identity in your keychain) plus
@@ -64,8 +64,8 @@ await build({
     directories: { output: 'dist', buildResources: 'build' },
     // Workspaces are compiled at runtime by esbuild, which reads the kit and node_modules from disk.
     asar: false,
-    // The Agent SDK ships its own Claude Code per platform (~230 MB); Lynx runs the user's install instead.
-    files: ['out/**', 'src/kit/**', 'resources/*.md', 'resources/home/**', 'resources/onboarding/**', 'LICENSE', 'package.json', '!**/node_modules/**/*.{map,d.ts,d.mts,d.cts,md}', '!node_modules/@anthropic-ai/claude-agent-sdk-*/**'],
+    // ACP adapters ship CLI dependencies; Lynx selects the user's installs explicitly.
+    files: ['out/**', 'src/kit/**', 'resources/*.md', 'resources/home/**', 'resources/onboarding/**', 'LICENSE', 'package.json', '!**/node_modules/**/*.{map,d.ts,d.mts,d.cts,md}', '!**/node_modules/@anthropic-ai/claude-agent-sdk-*/**', '!**/node_modules/@openai/codex*/**'],
     mac: {
       icon: 'build/icon.icns',
       category: 'public.app-category.developer-tools',

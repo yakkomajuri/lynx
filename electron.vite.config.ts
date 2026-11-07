@@ -6,7 +6,7 @@ export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
     resolve: { alias: { '@shared': resolve('src/shared') } },
-    build: { rollupOptions: { input: { index: resolve('src/main/index.ts'), lynxd: resolve('src/daemon/index.ts'), agentd: resolve('src/agentd/index.ts'), 'agentd-worker': resolve('src/agentd/providers/worker.ts'), voice: resolve('src/main/voiceWorker.ts') } } },
+    build: { rollupOptions: { input: { index: resolve('src/main/index.ts'), lynxd: resolve('src/daemon/index.ts'), agentd: resolve('src/agentd/index.ts'), 'agentd-worker': resolve('src/agentd/providers/worker.ts'), 'agentd-claude-acp': resolve('src/agentd/providers/claude-acp.ts'), voice: resolve('src/main/voiceWorker.ts') } } },
   },
   preload: {
     plugins: [externalizeDepsPlugin()],

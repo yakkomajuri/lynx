@@ -55,14 +55,19 @@ export function toItems(events: SessionEvent[]): Item[] {
           }
         : { key: e.seq, ...invocationStep(p) }
       const id = cut ? previewField(cut, 'id') : p.id
-      if (id) byId.set(id, step)
+      // ACP can refine a tool's input after announcing it. Keep one visible step for its id.
+      const previous = id ? byId.get(id) : undefined
+      if (previous) Object.assign(previous, { ...step, key: previous.key })
+      else if (id) byId.set(id, step)
       if (/(^|__)marketplace_submit$/.test(step.name)) {
         const stage = cut ? previewField(cut, 'stage') : resultJson(step.input)?.stage
-        if (typeof stage === 'string') stageByStep.set(step.key, stage)
+        if (typeof stage === 'string') stageByStep.set(previous?.key ?? step.key, stage)
       }
-      const last = items.at(-1)
-      if (last?.kind === 'tools') last.steps.push(step)
-      else items.push({ kind: 'tools', key: e.seq, steps: [step] })
+      if (!previous) {
+        const last = items.at(-1)
+        if (last?.kind === 'tools') last.steps.push(step)
+        else items.push({ kind: 'tools', key: e.seq, steps: [step] })
+      }
     } else if (e.type === 'tool_result') {
       // { id, output, is_error }, or before that Claude Code's tool_result block or Codex's whole item.
       const cut = (e as { payload_truncated?: boolean }).payload_truncated && typeof p.preview === 'string' ? (p.preview as string) : undefined

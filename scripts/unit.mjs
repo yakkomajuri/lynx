@@ -1100,38 +1100,17 @@ export default async function ({ repo }) {
 // ── agents: every harness reports tool calls and failures in one shape, and is named in one list
 {
   console.log('agent events')
-  const { codexTool, codexToolResult, codexFailure } = await load('src/agentd/providers/codex.ts')
-  const { claudeTool, claudeToolResult, claudeFailure } = await load('src/agentd/providers/claude.ts')
+  const { acpTool, acpErrorMessage } = await load('src/agentd/providers/acp-events.ts')
+  const { codexAcpConfig } = await load('src/agentd/providers/acp-launch.ts')
   const { classifyFailure } = await load('src/agentd/providers/events.ts')
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
-  const bash = claudeTool({ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'ls' } })
-  check('a Claude Code tool call keeps its id, name and input, and says what it does', same(bash, { id: 't1', kind: 'command', name: 'Bash', input: { command: 'ls' } }), JSON.stringify(bash))
-  check('a Claude Code connector call is an mcp call', claudeTool({ id: 't2', name: 'mcp__connection_ab__connector_list', input: {} }).kind === 'mcp')
-  check('a Claude Code tool result is matched by id', same(claudeToolResult({ type: 'tool_result', tool_use_id: 't1', content: 'a\nb', is_error: true }), { id: 't1', output: 'a\nb', is_error: true }))
-  const command = { type: 'commandExecution', id: 'c1', command: 'npm test', cwd: '/w', status: 'completed', aggregatedOutput: '1 failed', exitCode: 1 }
-  check('a Codex command is a Bash call', same(codexTool(command), { id: 'c1', kind: 'command', name: 'Bash', input: { command: 'npm test', cwd: '/w' } }), JSON.stringify(codexTool(command)))
-  check('a Codex command that exits non-zero is an error, with its output', same(codexToolResult(command), { id: 'c1', output: '1 failed', is_error: true }))
-  const mcp = { type: 'mcpToolCall', id: 'm1', server: 'connection_ab', tool: 'connector_add', arguments: { url: 'x' }, status: 'completed', result: { content: [{ type: 'text', text: '{"id":"gh"}' }] }, error: null }
-  check('a Codex connector call is named as Claude Code names it', codexTool(mcp).name === 'mcp__connection_ab__connector_add' && codexTool(mcp).kind === 'mcp')
-  check('a Codex connector result is its content blocks', same(codexToolResult(mcp).output, mcp.result.content) && codexToolResult(mcp).is_error === false)
-  check('a Codex connector result with only structured content keeps it', same(codexToolResult({ ...mcp, result: { content: [], structuredContent: { rows: [1, 2] } } }).output, { rows: [1, 2] }))
-  const both = codexToolResult({ ...mcp, result: { content: [{ type: 'text', text: 'two rows' }], structuredContent: { rows: [1, 2] } } }).output
-  check('a Codex connector result with both keeps both', same(both, { content: [{ type: 'text', text: 'two rows' }], structuredContent: { rows: [1, 2] } }), JSON.stringify(both))
-  check('a failed Codex connector call says why', same(codexToolResult({ ...mcp, result: null, error: { message: 'nope' }, status: 'failed' }), { id: 'm1', output: 'nope', is_error: true }))
-  const edit = codexTool({ type: 'fileChange', id: 'f1', changes: [{ path: '/w/a.ts', kind: { type: 'update' }, diff: '+x' }], status: 'completed' })
-  check('a Codex file change is an edit of its paths', edit.kind === 'file_change' && edit.input.path === '/w/a.ts', JSON.stringify(edit))
-  check('the prompt, the answer and reasoning are not tool calls', ['userMessage', 'agentMessage', 'reasoning', 'plan'].every((type) => !codexTool({ type, id: 'x' }) && !codexToolResult({ type, id: 'x' })))
-  check('an item type nobody knew of still shows', codexTool({ type: 'somethingNew', id: 'n1', a: 1 })?.name === 'somethingNew')
-  check('a Codex usage limit is a usage limit', codexFailure({ message: 'You hit your limit', codexErrorInfo: 'usageLimitExceeded' }).code === 'usage_limit')
-  check('a Codex login problem is auth', codexFailure({ message: 'x', codexErrorInfo: 'unauthorized' }).code === 'auth')
-  check('a Codex failure without a code is read from its words', codexFailure({ message: 'stream disconnected', codexErrorInfo: { responseStreamDisconnected: { httpStatusCode: 502 } } }).code === 'provider_error')
-  const result = { type: 'result', subtype: 'success', is_error: true, result: 'API Error: 429', api_error_status: 429 }
-  check('a Claude Code rate limit is a usage limit', claudeFailure(result).code === 'usage_limit' && claudeFailure(result).message === 'API Error: 429', JSON.stringify(claudeFailure(result)))
-  check('a Claude Code billing error is a usage limit', claudeFailure({ ...result, api_error_status: null, result: 'x' }, 'billing_error').code === 'usage_limit')
-  check('a Claude Code login problem is auth', claudeFailure({ ...result, api_error_status: null, result: 'x' }, 'authentication_failed').code === 'auth')
-  check('a Claude Code error run says what went wrong', claudeFailure({ type: 'result', subtype: 'error_during_execution', is_error: true, errors: ['boom'] }).message === 'boom')
-  check('words alone: quota and login', classifyFailure("You've reached your usage limit") === 'usage_limit' && classifyFailure('Not logged in · Please run /login') === 'auth' && classifyFailure('boom') === 'provider_error')
+  check('ACP tools retain their identity and input', same(acpTool({ toolCallId: '1', name: 'Bash', title: 'Run tests', kind: 'execute', rawInput: { command: 'npm test' } }), { id: '1', kind: 'command', name: 'Bash', input: { command: 'npm test' } }))
+  check('ACP connector tools keep their MCP names', acpTool({ toolCallId: '2', title: 'mcp__connection_a__read' }).kind === 'mcp')
+  check('unknown ACP kinds remain visible', acpTool({ toolCallId: '3', title: 'New tool', kind: 'future' }).kind === 'other')
+  check('failures distinguish quota, login and provider errors', classifyFailure('usage limit') === 'usage_limit' && classifyFailure('Not logged in') === 'auth' && classifyFailure('boom') === 'provider_error')
 
+  check('ACP error details explain a generic internal error', acpErrorMessage(Object.assign(new Error('Internal error'), { data: { details: 'Not logged in' } })) === 'Internal error: Not logged in')
+  check('Codex refuses server names its override keys cannot safely address', !!await throws(() => codexAcpConfig({ config: { permission_mode: 'ask' } }, ['server.with.dots'])))
   const { providers, providerById } = await load('src/agentd/providers/registry.ts')
   delete process.env.AGENT_ENABLE_FAKE
   check('the registry offers Claude Code and Codex, and the test agent only when asked', same(providers().map((p) => p.id), ['claude', 'codex']))
@@ -1139,7 +1118,7 @@ export default async function ({ repo }) {
   check('the test agent is offered when enabled', !!providerById('fake'))
   delete process.env.AGENT_ENABLE_FAKE
   check('each provider says how its CLI resumes a conversation', same(providerById('claude').resume_command, ['claude', '--resume']) && same(providerById('codex').resume_command, ['codex', 'resume']))
-  check('only Claude Code keeps its process between messages by default', same(providers().filter((p) => p.capabilities.warm).map((p) => p.id), ['claude']))
+  check('both providers use ACP and keep warm sessions', providers().every((p) => p.transport === 'acp' && p.capabilities.warm))
 }
 
 // ── Claude Code on Bedrock, Vertex or a gateway: how it reaches the API comes along, nothing else
@@ -1212,6 +1191,12 @@ export default async function ({ repo }) {
   const { toItems, cardsInTurn } = await load('src/kit/items.ts', 'tsconfig.web.json')
   let seq = 0
   const ev = (type, payload) => ({ seq: String(++seq), type, payload })
+  const refined = toItems([
+    ev('tool_invocation', { id: 'acp-tool', kind: 'command', name: 'Bash', input: {} }),
+    ev('tool_invocation', { id: 'acp-tool', kind: 'command', name: 'Bash', input: { command: 'echo hello' } }),
+    ev('tool_result', { id: 'acp-tool', output: 'hello', is_error: false }),
+  ]).filter((item) => item.kind === 'tools').flatMap((item) => item.steps)
+  check('ACP tool updates refine one transcript step and keep its result', refined.length === 1 && refined[0].input.command === 'echo hello' && refined[0].result === 'hello')
   const touch = (tool, id) => {
     const call = `t${seq}`
     return [ev('tool_invocation', { id: call, name: `mcp__connection_x__${tool}`, input: { connector: id } }), ev('tool_result', { tool_use_id: call, output: JSON.stringify({ id, status: 'auth-required' }) })]
@@ -2192,20 +2177,12 @@ export const useSyncExternalStore = (_s, get) => get()
 {
   console.log('read-only connector tools')
   const { toolInfo, agentReadOnly } = await load('src/main/readOnly.ts')
-  const { connectorRules } = await load('src/agentd/providers/claude.ts')
   const listed = [{ name: 'get_or_create_record' }, { name: 'list_records' }, { name: 'list_declared', annotations: { readOnlyHint: true } }, { name: 'get_said_writes', annotations: { readOnlyHint: false } }].map(toolInfo)
   check('a name that looks like a read is still guessed read-only for display', listed[0].readOnly === true && listed[0].declaredReadOnly === false)
   const external = { transport: 'http' }
   // What the hub advertises, as Claude Code reports it back for the agent's connectors.
   const advertised = listed.map((t) => [t.name, agentReadOnly(external, t)])
   check('the hub advertises only declared read-only tools of an outside connector', JSON.stringify(advertised) === JSON.stringify([['get_or_create_record', false], ['list_records', false], ['list_declared', true], ['get_said_writes', false]]), JSON.stringify(advertised))
-  const id = '11111111-2222-4333-8444-555555555555'
-  const server = `connection_${id.replaceAll('-', '')}`
-  const status = [{ name: server, status: 'connected', tools: advertised.map(([name, readOnly]) => ({ name, annotations: { readOnly } })) }]
-  for (const permission_mode of ['ask', 'auto', 'deny']) {
-    const rules = connectorRules({ harness: 'claude', cwd: '/', prompt: '', provider_session_id: null, connections: [{ id, url: 'http://127.0.0.1/mcp/x', headers: {} }], config: { permission_mode } }, status)
-    check(`${permission_mode}: an unannotated get_or_create tool is not pre-approved; a declared read-only one is`, JSON.stringify(rules) === JSON.stringify([`mcp__${server}__list_declared`]), JSON.stringify(rules))
-  }
   const internal = { transport: 'internal' }
   check("the app's own connectors keep their own read-only flags", agentReadOnly(internal, { name: 'workspace_list', readOnly: true }) === true && agentReadOnly(internal, { name: 'workspace_delete', readOnly: false }) === false && agentReadOnly(internal, { name: 'my_custom_tool' }) === false)
 }
