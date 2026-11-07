@@ -1,7 +1,7 @@
 // Optional live ACP smoke test: uses signed-in local agents and model quota.
 import assert from 'node:assert/strict'
 import { build } from 'esbuild'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer } from 'node:http'
@@ -11,6 +11,24 @@ mkdirSync('node_modules/.cache', { recursive: true })
 const out = mkdtempSync(join(process.cwd(), 'node_modules/.cache/acp-live-'))
 const cwd = mkdtempSync(join(tmpdir(), 'lynx-acp-live-'))
 await build({ entryPoints: ['src/agentd/providers/acp.ts'], outfile: join(out, 'client.mjs'), bundle: true, platform: 'node', format: 'esm', packages: 'external' })
+await build({ entryPoints: ['src/agentd/providers/claude-acp.ts'], outfile: join(out, 'agentd-claude-acp.js'), bundle: true, platform: 'node', format: 'esm', packages: 'external' })
+await build({ entryPoints: ['src/agentd/providers/claude-bin.ts'], outfile: join(out, 'claude-bin.mjs'), bundle: true, platform: 'node', format: 'esm', packages: 'external' })
+const { claudeExecutable } = await import(join(out, 'claude-bin.mjs'))
+const originalClaudeBin = process.env.AGENT_CLAUDE_BIN
+const cliLog = join(out, 'claude-launches.jsonl')
+const checkedClaude = join(out, 'checked-claude')
+writeFileSync(checkedClaude, `#!/usr/bin/env node
+import { spawn } from 'node:child_process'
+import { appendFileSync } from 'node:fs'
+const safe = ![...process.argv, ...Object.values(process.env)].some((value) => value.includes('acp-live-test-token')) && !Object.keys(process.env).some((key) => key.startsWith('LYNX_ACP_HEADER_'))
+appendFileSync(${JSON.stringify(cliLog)}, JSON.stringify({ safe }) + '\\n')
+if (!safe) process.exit(99)
+const child = spawn(${JSON.stringify(claudeExecutable())}, process.argv.slice(2), { stdio: 'inherit' })
+for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => child.kill(signal))
+child.on('error', () => process.exit(98))
+child.on('exit', (code) => process.exit(code ?? 1))
+`, { mode: 0o700 })
+process.env.AGENT_CLAUDE_BIN = checkedClaude
 const { acpSession } = await import(join(out, 'client.mjs'))
 let pings = 0
 const hub = createServer(async (req, res) => {
@@ -59,10 +77,18 @@ try {
       live.close()
       live = await acpSession(continued, io)
       await turn({ ...continued, prompt: 'Reply with exactly RESUME OK. Do not use tools.' }, 'RESUME OK')
+      if (harness === 'claude') {
+        const launches = readFileSync(cliLog, 'utf8').trim().split('\n').map(JSON.parse)
+        assert(launches.length >= 2)
+        assert(launches.every((launch) => launch.safe), 'Connector credentials reached Claude argv or environment')
+        console.log('ok: Claude CLI arguments and environment contain no connector credentials')
+      }
       console.log(`ok: ${harness} authenticated connector, new session, warm turn, model/effort and resume`)
     } finally { live?.close(); clearTimeout(timer) }
   }
 } finally {
+  if (originalClaudeBin === undefined) delete process.env.AGENT_CLAUDE_BIN
+  else process.env.AGENT_CLAUDE_BIN = originalClaudeBin
   hub.closeAllConnections()
   await new Promise((resolve) => hub.close(resolve))
   rmSync(out, { recursive: true, force: true })

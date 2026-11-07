@@ -13,6 +13,7 @@ export async function acpSession(first: AgentSpec, io: SessionIO): Promise<Sessi
   const launch = await acpLaunch(first, io.signal)
   const child = spawn(launch.command, launch.args, { cwd: first.cwd, env: launch.env, stdio: ['pipe', 'pipe', 'pipe'] })
   let spec = first, sessionId: string | undefined, active = false, stopping = false
+  let currentMode: string | undefined
   let options: SessionConfigOption[] = []
   let events = acpEvents(io.emit)
   let queue = Promise.resolve()
@@ -28,6 +29,7 @@ export async function acpSession(first: AgentSpec, io: SessionIO): Promise<Sessi
     })
     .onNotification('session/update', ({ params }) => {
       if (sessionId && params.sessionId !== sessionId) return
+      if (params.update.sessionUpdate === 'current_mode_update') currentMode = params.update.currentModeId
       if (params.update.sessionUpdate === 'config_option_update') options = params.update.configOptions
       // session/load replays old messages. Lynx already stores them, so do not duplicate them.
       if (!active) return
@@ -94,6 +96,7 @@ export async function acpSession(first: AgentSpec, io: SessionIO): Promise<Sessi
     const modeId = acpMode(first)
     if (!state.modes?.availableModes.some((mode) => mode.id === modeId)) throw new Error(`ACP adapter does not offer the required permission mode: ${modeId}`)
     await connection.agent.request('session/set_mode', { sessionId, modeId }, control)
+    currentMode = modeId
     await io.emit({ type: 'provider_session', payload: { id: sessionId } })
   } catch (error) {
     close()
@@ -109,6 +112,13 @@ export async function acpSession(first: AgentSpec, io: SessionIO): Promise<Sessi
       queueError = undefined
       try {
         io.signal.throwIfAborted()
+        const modeId = acpMode(next)
+        if (currentMode !== modeId) {
+          await connection.agent.request('session/set_mode', { sessionId: id, modeId }, {
+            cancellationSignal: AbortSignal.any([io.signal, AbortSignal.timeout(15000)]), stopWaitingOnCancel: true,
+          })
+          currentMode = modeId
+        }
         for (const [category, value] of [['model', spec.config.model], ['thought_level', spec.config.effort]] as const) {
           if (!value) continue
           const option = options.find((option) => option.category === category)

@@ -66,9 +66,9 @@ try {
     assert(!JSON.stringify(w.events).includes('fixture-secret'))
     const created = w.requests().find((r) => r.method === 'session/new')
     assert.equal(created.params.systemPrompt.content[0].text, 'Test instructions')
-    assert.equal(created.params.mcpServers[0].headers[0].value, harness === 'claude' ? '${LYNX_ACP_HEADER_0}' : 'Bearer fixture-secret')
+    assert.equal(created.params.mcpServers[0].headers[0].value, 'Bearer fixture-secret')
+    assert.equal(created.credentialInEnv, false)
     if (harness === 'claude') {
-      assert.equal(created.header, 'Bearer fixture-secret')
       assert.equal(created.params._meta.claudeCode.options.strictMcpConfig, true)
       assert.deepEqual(created.params._meta.claudeCode.options.settingSources, [])
       assert.deepEqual(created.params._meta.claudeCode.options.allowedTools, ['mcp__connection_ab__read'])
@@ -100,8 +100,104 @@ try {
       assert.equal(permissions.events.some((e) => e.type === 'input_request'), mode === 'ask' || mode === 'auto')
       await permissions.stop()
     }
+    for (const fixtureCase of ['', 'mode-reset-error']) {
+      const w = worker(harness, {}, { prompt: 'enter-plan' }, fixtureCase)
+      await w.wait(() => w.events.some((e) => e.type === 'turn_done'))
+      w.send({ type: 'turn', spec: { ...w.spec, prompt: 'hello' } })
+      if (fixtureCase) {
+        await w.closed
+        assert.equal(w.events.filter((e) => e.type === 'agent_completed').at(-1).payload.success, false)
+        assert.equal(w.requests().filter((r) => r.method === 'session/prompt').length, 1)
+      } else {
+        await w.wait(() => w.events.filter((e) => e.type === 'turn_done').length === 2)
+        const requests = w.requests()
+        assert.equal(requests.filter((r) => r.method === 'session/set_mode').length, 2)
+        assert.equal(requests.filter((r) => r.method === 'session/prompt').at(-1).mode, harness === 'claude' ? 'default' : 'read-only')
+        await w.stop()
+      }
+    }
     console.log(`ok: ${harness} streaming, tools, redaction, settings, connectors, questions, warm turns, resume and four permission modes`)
   }
+  // Exercise grant changes through the real store and runner, which choose warm reuse.
+  for (const name of ['runner', 'store', 'db']) {
+    await build({ entryPoints: [`src/agentd/${name}.ts`], outfile: join(dir, `${name}.mjs`), bundle: true, platform: 'node', format: 'esm', packages: 'external', logLevel: 'silent' })
+  }
+  const { createRunner } = await import(join(dir, 'runner.mjs'))
+  const { createStore } = await import(join(dir, 'store.mjs'))
+  const { openDb } = await import(join(dir, 'db.mjs'))
+  for (const harness of ['claude', 'codex']) {
+    const db = openDb(join(dir, `${harness}.sqlite`))
+    const store = createStore(db, { dataDir: dir, roots: [dir] })
+    const log = join(dir, `${harness}-grants.jsonl`)
+    const url = `http://127.0.0.1:${hub.address().port}/mcp`
+    const headers = { authorization: 'Bearer fixture-secret', 'x-test': 'one' }
+    for (const id of ['a', 'b']) store.q("INSERT INTO connections (id, name, url, headers, created_at, updated_at) VALUES (?, ?, ?, ?, '', '')").run(id, id, url, JSON.stringify(headers))
+    const runner = createRunner(store, { node: process.execPath, worker: join(dir, 'worker.mjs'), concurrency: 1, warm: [harness], env: { AGENT_CLAUDE_BIN: process.execPath, AGENT_CODEX_BIN: join(process.cwd(), 'scripts/fixture-codex.mjs'), AGENT_CLAUDE_ACP_BIN: fixture, AGENT_CODEX_ACP_BIN: fixture, ACP_FIXTURE_LOG: log } })
+    const requests = () => readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse)
+    const complete = async (run) => {
+      const deadline = Date.now() + 15000
+      while (runner.live() || !['completed', 'failed'].includes(store.getRun(run.id).status)) {
+        assert(Date.now() < deadline, `Runner timed out: ${JSON.stringify(store.getRun(run.id))}`)
+        await new Promise((resolve) => setTimeout(resolve, 20))
+      }
+      assert.equal(store.getRun(run.id).status, 'completed', JSON.stringify(store.getRun(run.id)))
+      assert.equal(runner.warm(), 1)
+      return requests().filter((r) => r.method === 'session/prompt').at(-1).pid
+    }
+    try {
+      const { session, run } = await store.startSession({ harness, cwd: dir, prompt: 'hello', connection_ids: ['a'], config: { permission_mode: 'ask' } })
+      let pid = await complete(run)
+      assert.equal(await complete(await store.sendSession(session.id, 'hello')), pid)
+      const changed = async (names, expectedHeaders = headers) => {
+        const next = await complete(await store.sendSession(session.id, 'hello'))
+        assert.notEqual(next, pid, 'Changed connector grants must retire the warm worker')
+        pid = next
+        const loaded = requests().filter((r) => r.method === 'session/load').at(-1)
+        assert.equal(loaded.pid, pid)
+        assert.deepEqual(loaded.params.mcpServers.map((s) => s.name), names.map((id) => `connection_${id}`))
+        for (const server of loaded.params.mcpServers) assert.deepEqual(Object.fromEntries(server.headers.map(({ name, value }) => [name, value])), expectedHeaders)
+        if (harness === 'claude') assert.deepEqual(loaded.params._meta.claudeCode.options.allowedTools, names.map((id) => `mcp__connection_${id}__read`))
+        else for (const id of names) assert.equal(JSON.parse(loaded.config)[`mcp_servers.connection_${id}.enabled`], true)
+        return loaded
+      }
+      store.setGrants(session.id, [])
+      await changed([])
+      store.setGrants(session.id, ['b'])
+      await changed(['b'])
+      const rotated = { ...headers, authorization: 'Bearer rotated-fixture-secret' }
+      store.q('UPDATE connections SET headers = ? WHERE id = ?').run(JSON.stringify(rotated), 'b')
+      await changed(['b'], rotated)
+      store.q('UPDATE connections SET url = ? WHERE id = ?').run(url + '?changed', 'b')
+      assert.equal((await changed(['b'], rotated)).params.mcpServers[0].url, url + '?changed')
+      store.q('UPDATE connections SET headers = ? WHERE id = ?').run(JSON.stringify({ 'x-test': rotated['x-test'], authorization: rotated.authorization }), 'b')
+      assert.equal(await complete(await store.sendSession(session.id, 'hello')), pid, 'Header ordering must not retire the worker')
+      console.log(`ok: ${harness} warm reuse, connector revoke, grant, token rotation and URL change`)
+    } finally { await runner.shutdown(); db.close() }
+  }
+  // The upstream adapter also recreates queries internally after plan exits/account changes.
+  await build({ entryPoints: ['src/agentd/providers/claude-acp-connectors.ts'], outfile: join(dir, 'private-connectors.mjs'), bundle: true, platform: 'node', format: 'esm', packages: 'external', logLevel: 'silent' })
+  const { privateClaudeConnectors } = await import(join(dir, 'private-connectors.mjs'))
+  const created = [], registered = []
+  let rejected = false, closed = false
+  const adapter = {
+    sessions: {},
+    async createSession(params) {
+      created.push(params)
+      this.sessions.test = { query: { setMcpServers: async (config) => { registered.push(config); return { errors: rejected ? { connector: 'failed' } : {} } }, close: () => { closed = true } } }
+      return { sessionId: 'test' }
+    },
+  }
+  privateClaudeConnectors(adapter)
+  const servers = [{ name: 'connection_test', type: 'http', url: 'https://example.invalid/mcp', headers: [{ name: 'authorization', value: 'private-token' }] }]
+  await adapter.createSession({ cwd: dir, mcpServers: servers })
+  await adapter.createSession(created[0])
+  assert(created.every((params) => params.mcpServers.length === 0))
+  assert.deepEqual(registered, Array(2).fill({ connection_test: { type: 'http', url: servers[0].url, headers: { authorization: 'private-token' } } }))
+  rejected = true
+  await assert.rejects(adapter.createSession(created[0]), /register the granted connectors/)
+  assert.equal(closed, true)
+  assert.throws(() => privateClaudeConnectors({}), /no longer supports/)
+  console.log('ok: Claude credentials use control messages on initial and recreated queries; registration fails closed')
   for (const prompt of ['crash', 'failure', 'rpc-error', 'unsupported-question', 'secret-question']) {
     const w = worker('codex', {}, { prompt, warm: false })
     await w.closed

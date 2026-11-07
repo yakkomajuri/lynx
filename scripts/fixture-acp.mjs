@@ -10,11 +10,11 @@ const options = [
   { id: 'effort', name: 'Effort', category: 'thought_level', type: 'select', currentValue: 'medium', options: [{ value: 'medium', name: 'Medium' }, { value: 'high', name: 'High' }] },
 ]
 const state = () => ({ configOptions: options, modes: { currentModeId: 'default', availableModes: ['default', 'auto', 'bypassPermissions', 'read-only', 'agent', 'agent-full-access'].map((id) => ({ id, name: id })) } })
-let promptId
+let promptId, mode = 'default', modeChanges = 0
 const finish = () => { result(promptId, { stopReason: 'end_turn' }); promptId = undefined }
 createInterface({ input: process.stdin }).on('line', (line) => {
   const m = JSON.parse(line)
-  if (process.env.ACP_FIXTURE_LOG) appendFileSync(process.env.ACP_FIXTURE_LOG, JSON.stringify({ ...m, pid: process.pid, config: process.env.CODEX_CONFIG, header: process.env.LYNX_ACP_HEADER_0 }) + '\n')
+  if (process.env.ACP_FIXTURE_LOG) appendFileSync(process.env.ACP_FIXTURE_LOG, JSON.stringify({ ...m, pid: process.pid, config: process.env.CODEX_CONFIG, credentialInEnv: Object.values(process.env).some((value) => value.includes('fixture-secret')), mode }) + '\n')
   if (m.method === 'initialize') {
     if (process.env.ACP_FIXTURE_CASE === 'startup-hang') return
     if (process.env.ACP_FIXTURE_CASE === 'startup-exit') return process.exit(12)
@@ -23,7 +23,11 @@ createInterface({ input: process.stdin }).on('line', (line) => {
   else if (m.method === 'session/load') {
     update('agent_message_chunk', { content: { type: 'text', text: 'old replay must not be stored again' } })
     result(m.id, state())
-  } else if (m.method === 'session/set_mode') result(m.id, {})
+  } else if (m.method === 'session/set_mode') {
+    if (++modeChanges > 1 && process.env.ACP_FIXTURE_CASE === 'mode-reset-error') return send({ id: m.id, error: { code: -32602, message: 'Cannot reset mode' } })
+    mode = m.params.modeId
+    result(m.id, {})
+  }
   else if (m.method === 'session/set_config_option') {
     if (m.params.value === 'unsupported') return send({ id: m.id, error: { code: -32602, message: 'Unsupported model' } })
     options.find((o) => o.id === m.params.configId).currentValue = m.params.value
@@ -35,6 +39,11 @@ createInterface({ input: process.stdin }).on('line', (line) => {
     const prompt = m.params.prompt[0].text
     if (prompt === 'crash') return process.exit(23)
     if (prompt === 'hang') return
+    if (prompt === 'enter-plan') {
+      mode = 'plan'
+      update('current_mode_update', { currentModeId: mode })
+      return finish()
+    }
     if (prompt === 'failure') return result(m.id, { stopReason: 'refusal' })
     if (prompt === 'rpc-error') return send({ id: m.id, error: { code: -32000, message: 'Not logged in' } })
     if (prompt === 'permission') return send({ id: 'permission', method: 'session/request_permission', params: { sessionId: 'acp-session', toolCall: { toolCallId: 't', title: 'Write', rawInput: { secret: 'fixture-secret' } }, options: [{ optionId: 'always', name: 'Always', kind: 'allow_always' }, { optionId: 'once', name: 'Once', kind: 'allow_once' }, { optionId: 'no', name: 'No', kind: 'reject_once' }] } })
