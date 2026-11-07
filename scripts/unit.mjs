@@ -1113,12 +1113,13 @@ export default async function ({ repo }) {
   check('Codex refuses server names its override keys cannot safely address', !!await throws(() => codexAcpConfig({ config: { permission_mode: 'ask' } }, ['server.with.dots'])))
   const { providers, providerById } = await load('src/agentd/providers/registry.ts')
   delete process.env.AGENT_ENABLE_FAKE
-  check('the registry offers Claude Code and Codex, and the test agent only when asked', same(providers().map((p) => p.id), ['claude', 'codex']))
+  check('the registry offers Claude Code, Codex and OpenCode, and the test agent only when asked', same(providers().map((p) => p.id), ['claude', 'codex', 'opencode']))
   process.env.AGENT_ENABLE_FAKE = '1'
   check('the test agent is offered when enabled', !!providerById('fake'))
   delete process.env.AGENT_ENABLE_FAKE
-  check('each provider says how its CLI resumes a conversation', same(providerById('claude').resume_command, ['claude', '--resume']) && same(providerById('codex').resume_command, ['codex', 'resume']))
-  check('both providers use ACP and keep warm sessions', providers().every((p) => p.transport === 'acp' && p.capabilities.warm))
+  check('each provider says how its CLI resumes a conversation', same(providerById('claude').resume_command, ['claude', '--resume']) && same(providerById('codex').resume_command, ['codex', 'resume']) && same(providerById('opencode').resume_command, ['opencode', '--session']))
+  check('OpenCode exposes only implemented permissions and inputs', same(providerById('opencode').capabilities.permission_modes, ['deny', 'ask', 'allow']) && !providerById('opencode').capabilities.input.questions)
+  check('all providers use ACP and keep warm sessions', providers().every((p) => p.transport === 'acp' && p.capabilities.warm))
 }
 
 // ── Claude Code on Bedrock, Vertex or a gateway: how it reaches the API comes along, nothing else
@@ -2288,7 +2289,8 @@ export const useSyncExternalStore = (_s, get) => get()
   check('one ready, the other not installed', say('missing', 'ready').text === "Codex is ready. Claude Code isn't installed.", say('missing', 'ready').text)
   check('none ready, one signed out: sign in to it', say('out', 'missing').ok === false && say('out', 'missing').text === 'Sign in to Claude Code to continue.', say('out', 'missing').text)
   check('none ready, both signed out', say('out', 'out').text === 'Sign in to Claude Code or Codex to continue.', say('out', 'out').text)
-  check('none installed: what Lynx needs', say('missing', 'missing').ok === false && say('missing', 'missing').text.startsWith('Lynx needs Claude Code or Codex to be installed'))
+  check('OpenCode alone can complete setup', agentStatus([{ title: 'OpenCode', state: 'ready' }], false).ok === true)
+  check('none installed: what Lynx needs', say('missing', 'missing').ok === false && say('missing', 'missing').text.startsWith('Lynx needs an installed agent'))
 }
 
 // ── onboarding: a connection is written down as told only once the onboarding conversation has it

@@ -4,7 +4,7 @@ import { build } from 'esbuild'
 import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import { createServer } from 'node:http'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
@@ -28,7 +28,7 @@ let count = 0
 function worker(harness, config = {}, extra = {}, fixtureCase = '') {
   const log = join(dir, `log-${count++}.jsonl`)
   const spec = { harness, cwd: dir, prompt: 'hello', provider_session_id: null, warm: true, connections: [{ id: 'ab', url: `http://127.0.0.1:${hub.address().port}/mcp`, headers: { authorization: 'Bearer fixture-secret' } }], config: { permission_mode: 'ask', instructions: 'Test instructions', model: 'model-a', effort: 'high', ...config }, ...extra }
-  const child = spawn(process.execPath, [join(dir, 'worker.mjs')], { env: { ...process.env, AGENT_CLAUDE_BIN: process.execPath, AGENT_CODEX_BIN: join(process.cwd(), 'scripts/fixture-codex.mjs'), AGENT_CLAUDE_ACP_BIN: fixture, AGENT_CODEX_ACP_BIN: fixture, ACP_FIXTURE_LOG: log, ACP_FIXTURE_CASE: fixtureCase }, stdio: ['pipe', 'pipe', 'pipe'] })
+  const child = spawn(process.execPath, [join(dir, 'worker.mjs')], { env: { ...process.env, AGENT_CLAUDE_BIN: process.execPath, AGENT_CODEX_BIN: join(process.cwd(), 'scripts/fixture-codex.mjs'), AGENT_CLAUDE_ACP_BIN: fixture, AGENT_CODEX_ACP_BIN: fixture, AGENT_OPENCODE_ACP_BIN: fixture, AGENT_OPENCODE_BIN: join(process.cwd(), 'scripts/fixture-opencode.mjs'), ACP_FIXTURE_LOG: log, ACP_FIXTURE_CASE: fixtureCase }, stdio: ['pipe', 'pipe', 'pipe'] })
   workers.add(child)
   const events = []
   let stderr = '', ended = false, pending
@@ -56,7 +56,7 @@ function worker(harness, config = {}, extra = {}, fixtureCase = '') {
   return { spec, events, send, closed, wait, requests: () => readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse), stop: async () => { child.stdin.end(); await closed } }
 }
 try {
-  for (const harness of ['claude', 'codex']) {
+  for (const harness of ['claude', 'codex', 'opencode']) {
     const w = worker(harness)
     await w.wait(() => w.events.some((e) => e.type === 'turn_done'))
     assert.deepEqual(w.events.filter((e) => e.type === 'assistant_message').map((e) => e.text), ['Hello world', 'Done [REDACTED]'])
@@ -65,14 +65,22 @@ try {
     assert(w.events.some((e) => e.type === 'usage'))
     assert(!JSON.stringify(w.events).includes('fixture-secret'))
     const created = w.requests().find((r) => r.method === 'session/new')
-    assert.equal(created.params.systemPrompt.content[0].text, 'Test instructions')
+    if (harness === 'opencode') {
+      assert.equal(created.params.systemPrompt, undefined)
+      assert.equal(created.opencodeConfig.agent.lynx.prompt, 'Test instructions')
+      assert.equal(created.opencodeConfig.mcp.personal.enabled, false)
+      assert.equal(created.opencodeConfig.agent.personal.disable, true)
+      assert.equal(created.opencodeConfig.permission.connection_ab_read, 'allow')
+      assert.equal(created.opencodeConfig.permission['*'], 'ask')
+      assert(!JSON.stringify(created.opencodeConfig).includes('fixture-secret'))
+    } else assert.equal(created.params.systemPrompt.content[0].text, 'Test instructions')
     assert.equal(created.params.mcpServers[0].headers[0].value, 'Bearer fixture-secret')
     assert.equal(created.credentialInEnv, false)
     if (harness === 'claude') {
       assert.equal(created.params._meta.claudeCode.options.strictMcpConfig, true)
       assert.deepEqual(created.params._meta.claudeCode.options.settingSources, [])
       assert.deepEqual(created.params._meta.claudeCode.options.allowedTools, ['mcp__connection_ab__read'])
-    } else {
+    } else if (harness === 'codex') {
       const settings = JSON.parse(created.config)
       assert.equal(settings['mcp_servers.personal.enabled'], false)
       assert.equal(settings['mcp_servers.server-with-dashes.enabled'], false)
@@ -87,12 +95,13 @@ try {
     assert.equal(w.requests().filter((r) => r.method === 'session/new').length, 1)
     assert(w.requests().some((r) => r.method === 'session/set_config_option' && r.params.value === 'model-b'))
     await w.stop()
+    if (harness === 'opencode') assert(!existsSync(created.opencodeConfigPath), 'Temporary config must be removed when the adapter exits')
     const resumed = worker(harness, {}, { provider_session_id: 'acp-session' })
     await resumed.wait(() => resumed.events.some((e) => e.type === 'turn_done'))
     assert(!JSON.stringify(resumed.events).includes('old replay'))
     assert(resumed.requests().some((r) => r.method === 'session/load'))
     await resumed.stop()
-    for (const mode of ['deny', 'ask', 'auto', 'allow']) {
+    for (const mode of (harness === 'opencode' ? ['deny', 'ask', 'allow'] : ['deny', 'ask', 'auto', 'allow'])) {
       const permissions = worker(harness, { permission_mode: mode }, { prompt: 'permission' })
       await permissions.wait(() => permissions.events.some((e) => e.type === 'turn_done'))
       const response = permissions.requests().find((r) => r.id === 'permission' && r.result)
@@ -112,11 +121,11 @@ try {
         await w.wait(() => w.events.filter((e) => e.type === 'turn_done').length === 2)
         const requests = w.requests()
         assert.equal(requests.filter((r) => r.method === 'session/set_mode').length, 2)
-        assert.equal(requests.filter((r) => r.method === 'session/prompt').at(-1).mode, harness === 'claude' ? 'default' : 'read-only')
+        assert.equal(requests.filter((r) => r.method === 'session/prompt').at(-1).mode, harness === 'claude' ? 'default' : harness === 'opencode' ? 'lynx' : 'read-only')
         await w.stop()
       }
     }
-    console.log(`ok: ${harness} streaming, tools, redaction, settings, connectors, questions, warm turns, resume and four permission modes`)
+    console.log(`ok: ${harness} streaming, tools, redaction, settings, connectors, questions, warm turns, resume and supported permission modes`)
   }
   // Exercise grant changes through the real store and runner, which choose warm reuse.
   for (const name of ['runner', 'store', 'db']) {
@@ -125,14 +134,14 @@ try {
   const { createRunner } = await import(join(dir, 'runner.mjs'))
   const { createStore } = await import(join(dir, 'store.mjs'))
   const { openDb } = await import(join(dir, 'db.mjs'))
-  for (const harness of ['claude', 'codex']) {
+  for (const harness of ['claude', 'codex', 'opencode']) {
     const db = openDb(join(dir, `${harness}.sqlite`))
     const store = createStore(db, { dataDir: dir, roots: [dir] })
     const log = join(dir, `${harness}-grants.jsonl`)
     const url = `http://127.0.0.1:${hub.address().port}/mcp`
     const headers = { authorization: 'Bearer fixture-secret', 'x-test': 'one' }
     for (const id of ['a', 'b']) store.q("INSERT INTO connections (id, name, url, headers, created_at, updated_at) VALUES (?, ?, ?, ?, '', '')").run(id, id, url, JSON.stringify(headers))
-    const runner = createRunner(store, { node: process.execPath, worker: join(dir, 'worker.mjs'), concurrency: 1, warm: [harness], env: { AGENT_CLAUDE_BIN: process.execPath, AGENT_CODEX_BIN: join(process.cwd(), 'scripts/fixture-codex.mjs'), AGENT_CLAUDE_ACP_BIN: fixture, AGENT_CODEX_ACP_BIN: fixture, ACP_FIXTURE_LOG: log } })
+    const runner = createRunner(store, { node: process.execPath, worker: join(dir, 'worker.mjs'), concurrency: 1, warm: [harness], env: { AGENT_CLAUDE_BIN: process.execPath, AGENT_CODEX_BIN: join(process.cwd(), 'scripts/fixture-codex.mjs'), AGENT_CLAUDE_ACP_BIN: fixture, AGENT_CODEX_ACP_BIN: fixture, AGENT_OPENCODE_ACP_BIN: fixture, AGENT_OPENCODE_BIN: join(process.cwd(), 'scripts/fixture-opencode.mjs'), ACP_FIXTURE_LOG: log } })
     const requests = () => readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse)
     const complete = async (run) => {
       const deadline = Date.now() + 15000
@@ -157,7 +166,12 @@ try {
         assert.deepEqual(loaded.params.mcpServers.map((s) => s.name), names.map((id) => `connection_${id}`))
         for (const server of loaded.params.mcpServers) assert.deepEqual(Object.fromEntries(server.headers.map(({ name, value }) => [name, value])), expectedHeaders)
         if (harness === 'claude') assert.deepEqual(loaded.params._meta.claudeCode.options.allowedTools, names.map((id) => `mcp__connection_${id}__read`))
-        else for (const id of names) assert.equal(JSON.parse(loaded.config)[`mcp_servers.connection_${id}.enabled`], true)
+        else if (harness === 'codex') {
+          for (const id of names) assert.equal(JSON.parse(loaded.config)[`mcp_servers.connection_${id}.enabled`], true)
+        } else {
+          assert.equal(loaded.opencodeConfig.mcp.personal.enabled, false)
+          assert.deepEqual(Object.keys(loaded.opencodeConfig.permission).filter((name) => name.startsWith('connection_')), names.map((id) => `connection_${id}_read`))
+        }
         return loaded
       }
       store.setGrants(session.id, [])
@@ -174,6 +188,32 @@ try {
       console.log(`ok: ${harness} warm reuse, connector revoke, grant, token rotation and URL change`)
     } finally { await runner.shutdown(); db.close() }
   }
+  // Native OpenCode discovery and unsupported settings must fail safely.
+  await build({ entryPoints: ['src/agentd/providers/opencode-discover.ts'], outfile: join(dir, 'opencode-discover.mjs'), bundle: true, platform: 'node', format: 'esm', packages: 'external', logLevel: 'silent' })
+  const { discoverOpenCode } = await import(join(dir, 'opencode-discover.mjs'))
+  const previousBin = process.env.AGENT_OPENCODE_BIN
+  try {
+    process.env.AGENT_OPENCODE_BIN = join(process.cwd(), 'scripts/fixture-opencode.mjs')
+    const discovered = await discoverOpenCode()
+    assert.equal(discovered.available, true)
+    assert.equal(discovered.signed_in, null)
+    assert.deepEqual(discovered.models.map((m) => m.id), ['fixture/model-a', 'fixture/model-b'])
+    process.env.AGENT_OPENCODE_BIN = join(dir, 'missing-opencode')
+    assert.equal((await discoverOpenCode()).available, false)
+  } finally {
+    if (previousBin === undefined) delete process.env.AGENT_OPENCODE_BIN
+    else process.env.AGENT_OPENCODE_BIN = previousBin
+  }
+  const auto = worker('opencode', { permission_mode: 'auto' }, { warm: false })
+  await auto.closed
+  assert.equal(auto.events.find((e) => e.type === 'agent_completed').payload.success, false)
+  process.env.OPENCODE_FIXTURE_CONFLICT = '1'
+  const conflict = worker('opencode', {}, { warm: false })
+  delete process.env.OPENCODE_FIXTURE_CONFLICT
+  await conflict.closed
+  assert.equal(conflict.events.find((e) => e.type === 'agent_completed').payload.success, false)
+  assert(conflict.events.some((e) => JSON.stringify(e).includes('overrides Lynx')))
+  console.log('ok: OpenCode discovery, missing binary, unsupported auto mode and configuration conflict')
   // The upstream adapter also recreates queries internally after plan exits/account changes.
   await build({ entryPoints: ['src/agentd/providers/claude-acp-connectors.ts'], outfile: join(dir, 'private-connectors.mjs'), bundle: true, platform: 'node', format: 'esm', packages: 'external', logLevel: 'silent' })
   const { privateClaudeConnectors } = await import(join(dir, 'private-connectors.mjs'))

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // A deterministic ACP peer. Exercises the real worker transport without a model or account.
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, readFileSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 const send = (value) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', ...value }) + '\n')
 const result = (id, value) => send({ id, result: value })
@@ -9,16 +9,18 @@ const options = [
   { id: 'model', name: 'Model', category: 'model', type: 'select', currentValue: 'model-a', options: [{ value: 'model-a', name: 'A' }, { value: 'model-b', name: 'B' }] },
   { id: 'effort', name: 'Effort', category: 'thought_level', type: 'select', currentValue: 'medium', options: [{ value: 'medium', name: 'Medium' }, { value: 'high', name: 'High' }] },
 ]
-const state = () => ({ configOptions: options, modes: { currentModeId: 'default', availableModes: ['default', 'auto', 'bypassPermissions', 'read-only', 'agent', 'agent-full-access'].map((id) => ({ id, name: id })) } })
+const opencode = !!process.env.OPENCODE_CONFIG
+if (opencode) options.push({ id: 'mode', name: 'Agent', category: 'mode', type: 'select', currentValue: 'lynx', options: [{ value: 'lynx', name: 'Lynx' }, { value: 'plan', name: 'Plan' }] })
+const state = () => ({ configOptions: options, modes: opencode ? undefined : { currentModeId: 'default', availableModes: ['default', 'auto', 'bypassPermissions', 'read-only', 'agent', 'agent-full-access'].map((id) => ({ id, name: id })) } })
 let promptId, mode = 'default', modeChanges = 0
 const finish = () => { result(promptId, { stopReason: 'end_turn' }); promptId = undefined }
 createInterface({ input: process.stdin }).on('line', (line) => {
   const m = JSON.parse(line)
-  if (process.env.ACP_FIXTURE_LOG) appendFileSync(process.env.ACP_FIXTURE_LOG, JSON.stringify({ ...m, pid: process.pid, config: process.env.CODEX_CONFIG, credentialInEnv: Object.values(process.env).some((value) => value.includes('fixture-secret')), mode }) + '\n')
+  if (process.env.ACP_FIXTURE_LOG) appendFileSync(process.env.ACP_FIXTURE_LOG, JSON.stringify({ ...m, pid: process.pid, config: process.env.CODEX_CONFIG, opencodeConfig: opencode ? JSON.parse(readFileSync(process.env.OPENCODE_CONFIG, 'utf8')) : undefined, opencodeConfigPath: process.env.OPENCODE_CONFIG, credentialInEnv: Object.values(process.env).some((value) => value.includes('fixture-secret')), mode }) + '\n')
   if (m.method === 'initialize') {
     if (process.env.ACP_FIXTURE_CASE === 'startup-hang') return
     if (process.env.ACP_FIXTURE_CASE === 'startup-exit') return process.exit(12)
-    result(m.id, { protocolVersion: 1, agentCapabilities: { loadSession: process.env.ACP_FIXTURE_CASE !== 'no-resume', mcpCapabilities: { http: true }, sessionCapabilities: { systemPrompt: {} } }, authMethods: [] })
+    result(m.id, { protocolVersion: 1, agentCapabilities: { loadSession: process.env.ACP_FIXTURE_CASE !== 'no-resume', mcpCapabilities: { http: true }, sessionCapabilities: opencode ? {} : { systemPrompt: {} } }, authMethods: [] })
   } else if (m.method === 'session/new') result(m.id, { sessionId: 'acp-session', ...state() })
   else if (m.method === 'session/load') {
     update('agent_message_chunk', { content: { type: 'text', text: 'old replay must not be stored again' } })
@@ -41,7 +43,8 @@ createInterface({ input: process.stdin }).on('line', (line) => {
     if (prompt === 'hang') return
     if (prompt === 'enter-plan') {
       mode = 'plan'
-      update('current_mode_update', { currentModeId: mode })
+      if (opencode) { options.find((o) => o.id === 'mode').currentValue = mode; update('config_option_update', { configOptions: options }) }
+      else update('current_mode_update', { currentModeId: mode })
       return finish()
     }
     if (prompt === 'failure') return result(m.id, { stopReason: 'refusal' })

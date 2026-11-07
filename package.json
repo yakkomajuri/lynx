@@ -30,7 +30,8 @@
     "preview:check": "node scripts/preview-checks.mjs",
     "preview:shot": "node scripts/preview-shot.mjs",
     "test:acp": "node scripts/acp.mjs",
-    "test:acp:live": "node scripts/acp-smoke.mjs"
+    "test:acp:live": "node scripts/acp-smoke.mjs",
+    "test:opencode": "node scripts/opencode-smoke.mjs"
   },
   "dependencies": {
     "@agentclientprotocol/claude-agent-acp": "0.101.0",

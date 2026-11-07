@@ -5,7 +5,7 @@ import { acpLaunch, acpMode } from './acp-launch'
 import { acpEvents, acpErrorMessage } from './acp-events'
 import { acpPermission, acpElicitation } from './acp-input'
 import { failure } from './events'
-import type { AgentSpec } from './types'
+import { mcpName, type AgentSpec } from './types'
 import type { Session, SessionIO } from './registry'
 
 /** One ACP process per session. Only launch settings know which provider is behind the protocol. */
@@ -15,7 +15,8 @@ export async function acpSession(first: AgentSpec, io: SessionIO): Promise<Sessi
   let spec = first, sessionId: string | undefined, active = false, stopping = false
   let currentMode: string | undefined
   let options: SessionConfigOption[] = []
-  let events = acpEvents(io.emit)
+  const eventStream = (spec: AgentSpec) => acpEvents(io.emit, (spec.connections ?? []).map((c) => mcpName(c.id)).sort((a, b) => b.length - a.length))
+  let events = eventStream(first)
   let queue = Promise.resolve()
   let queueError: unknown
   const app = client({ name: 'Lynx' })
@@ -30,7 +31,11 @@ export async function acpSession(first: AgentSpec, io: SessionIO): Promise<Sessi
     .onNotification('session/update', ({ params }) => {
       if (sessionId && params.sessionId !== sessionId) return
       if (params.update.sessionUpdate === 'current_mode_update') currentMode = params.update.currentModeId
-      if (params.update.sessionUpdate === 'config_option_update') options = params.update.configOptions
+      if (params.update.sessionUpdate === 'config_option_update') {
+        options = params.update.configOptions
+        const mode = options.find((option) => option.category === 'mode')
+        if (mode && typeof mode.currentValue === 'string') currentMode = mode.currentValue
+      }
       // session/load replays old messages. Lynx already stores them, so do not duplicate them.
       if (!active) return
       queue = queue.then(() => events.update(params.update)).catch((error) => {
@@ -60,9 +65,9 @@ export async function acpSession(first: AgentSpec, io: SessionIO): Promise<Sessi
     setTimeout(close, 1000).unref()
   }
   io.signal.addEventListener('abort', abort, { once: true })
-  child.on('error', (error) => connection.close(error))
+  child.on('error', (error) => { launch.cleanup(); connection.close(error) })
   child.stdin.on('error', (error) => connection.close(error))
-  child.on('exit', (code, signal) => connection.close(new Error(`ACP adapter exited (${signal ?? code})`)))
+  child.on('exit', (code, signal) => { launch.cleanup(); connection.close(new Error(`ACP adapter exited (${signal ?? code})`)) })
   child.stderr.on('data', (data) => process.stderr.write(data))
   void connection.closed.then(close)
   const control = { cancellationSignal: AbortSignal.any([io.signal, AbortSignal.timeout(30000)]), stopWaitingOnCancel: true }
@@ -77,10 +82,10 @@ export async function acpSession(first: AgentSpec, io: SessionIO): Promise<Sessi
     }, control)
     if (init.protocolVersion !== PROTOCOL_VERSION) throw new Error(`Unsupported ACP version: ${init.protocolVersion}`)
     if (first.connections?.length && !init.agentCapabilities?.mcpCapabilities?.http) throw new Error('ACP adapter does not support HTTP connectors')
-    if (first.config.instructions && !init.agentCapabilities?.sessionCapabilities?.systemPrompt) throw new Error('ACP adapter does not support session instructions')
+    if (first.config.instructions && !launch.instructionsConfigured && !init.agentCapabilities?.sessionCapabilities?.systemPrompt) throw new Error('ACP adapter does not support session instructions')
     const params: NewSessionRequest = {
       cwd: first.cwd, mcpServers: launch.servers, _meta: launch.meta,
-      ...(first.config.instructions ? { systemPrompt: { mode: 'append' as const, content: [{ type: 'text' as const, text: first.config.instructions }] } } : {}),
+      ...(first.config.instructions && !launch.instructionsConfigured ? { systemPrompt: { mode: 'append' as const, content: [{ type: 'text' as const, text: first.config.instructions }] } } : {}),
     }
     let state: NewSessionResponse | LoadSessionResponse
     if (first.provider_session_id) {
@@ -94,7 +99,9 @@ export async function acpSession(first: AgentSpec, io: SessionIO): Promise<Sessi
     }
     options = state.configOptions ?? options
     const modeId = acpMode(first)
-    if (!state.modes?.availableModes.some((mode) => mode.id === modeId)) throw new Error(`ACP adapter does not offer the required permission mode: ${modeId}`)
+    const modeOption = options.find((option) => option.category === 'mode')
+    const offeredMode = modeOption?.type === 'select' && modeOption.options.some((option) => 'value' in option ? option.value === modeId : option.options.some((item) => item.value === modeId))
+    if (!state.modes?.availableModes.some((mode) => mode.id === modeId) && !offeredMode) throw new Error(`ACP adapter does not offer the required permission mode: ${modeId}`)
     await connection.agent.request('session/set_mode', { sessionId, modeId }, control)
     currentMode = modeId
     await io.emit({ type: 'provider_session', payload: { id: sessionId } })
@@ -108,7 +115,7 @@ export async function acpSession(first: AgentSpec, io: SessionIO): Promise<Sessi
     closed: connection.closed,
     async turn(next) {
       spec = next
-      events = acpEvents(io.emit)
+      events = eventStream(next)
       queueError = undefined
       try {
         io.signal.throwIfAborted()
