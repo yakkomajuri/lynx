@@ -49,6 +49,8 @@ export interface FrameHandle {
   send: (type: string, payload?: Record<string, unknown>) => void
   /** Puts a held version on screen now. */
   update: () => void
+  /** Where the frame on screen is, in the window. */
+  rect: () => DOMRect | null
 }
 
 export function Frame({ workspace, version, mayHold, pinned, onHeld, onPost, onRoute, handle }: { workspace: string; version: number; /** Whether a new version may wait while the user is busy in the frame; not while the keyboard is in the agent panel. */ mayHold: boolean; /** A new version waits whatever else: Point is on. */ pinned: boolean; /** A new version waits (its number), or none does (null). */ onHeld?: (version: number | null) => void; onPost: (type: string, payload: Record<string, any>) => void; onRoute?: (path: string, above: string[]) => void; handle?: { current: FrameHandle | null } }) {
@@ -202,7 +204,7 @@ export function Frame({ workspace, version, mayHold, pinned, onHeld, onPost, onR
   route.current = onRoute
   // The keys the frame hands over to the window rather than keeping: every shortcut's.
   const sendShortcuts = (win = shownEl()?.contentWindow) => win?.postMessage({ sb: 1, type: 'shortcuts', combos: boundCombos() }, '*')
-  if (handle) handle.current = { send: (type, payload = {}) => shownEl()?.contentWindow?.postMessage({ sb: 1, type, ...payload }, '*'), update: () => typeof heldRef.current === 'number' && load(heldRef.current, true) }
+  if (handle) handle.current = { send: (type, payload = {}) => shownEl()?.contentWindow?.postMessage({ sb: 1, type, ...payload }, '*'), update: () => typeof heldRef.current === 'number' && load(heldRef.current, true), rect: () => shownEl()?.getBoundingClientRect() ?? null }
 
   useEffect(() => {
     if (version === loaded) return
