@@ -74,6 +74,7 @@ export interface Provider {
 const names = new Map<string, string>([
   ['claude', 'Claude Code'],
   ['codex', 'Codex'],
+  ['opencode', 'OpenCode'],
 ])
 export const harnessName = (h: string) => names.get(h) ?? h
 const EFFORTS: Record<string, string> = { minimal: 'Minimal', low: 'Low', medium: 'Medium', high: 'High', xhigh: 'Extra high', max: 'Max', ultra: 'Ultra' }
