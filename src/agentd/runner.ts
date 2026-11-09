@@ -1,5 +1,6 @@
 // Launches queued runs as worker processes and records what they report.
 import { spawn, type ChildProcess } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { StringDecoder } from 'node:string_decoder'
 import { validEvent, WorkerLines } from './providers/protocol'
 import { claudeProviderSettings } from './providers/claude-settings'
@@ -62,8 +63,15 @@ interface Worker {
   stopping?: StopReason | 'retire' | 'broken'
 }
 
-/** A new process is needed when one of these changes; model, effort and connectors change in place. */
-const shapeOf = (spec: AgentSpec) => JSON.stringify([spec.harness, spec.cwd, spec.config.permission_mode, spec.config.instructions ?? null])
+/** Only model and effort change in place. Grants and credentials belong to the process that
+ * registered them; a change must retire it before another turn can use its old connectors. */
+const shapeOf = (spec: AgentSpec) => JSON.stringify([
+  spec.harness, spec.cwd, spec.config.permission_mode, spec.config.instructions ?? null,
+  (spec.connections ?? []).map((connection) => [
+    connection.id, connection.url,
+    createHash('sha256').update(JSON.stringify(Object.entries(connection.headers).sort(([a], [b]) => a.localeCompare(b)))).digest('hex'),
+  ]).sort(([a], [b]) => a.localeCompare(b)),
+])
 
 export function createRunner(store: Store, opts: RunnerOptions) {
   const live = new Map<string, { worker: Worker; stop: (reason: StopReason) => void }>()

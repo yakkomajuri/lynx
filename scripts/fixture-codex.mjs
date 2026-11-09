@@ -22,6 +22,7 @@ const completed = (success, error = null) => send({ method: 'account/login/compl
 createInterface({ input: process.stdin }).on('line', (line) => {
   const m = JSON.parse(line)
   if (m.method === 'initialize') send({ id: m.id, result: { userAgent: 'fake' } })
+  else if (m.method === 'config/read') send({ id: m.id, result: { config: { mcp_servers: { personal: {}, 'server-with-dashes': {} } }, layers: [{ config: { mcp_servers: { project: {} } } }] } })
   else if (m.method === 'model/list') send({ id: m.id, result: { data: [] } })
   else if (m.method === 'account/login/start') {
     send({ id: m.id, result: { type: 'chatgpt', loginId, authUrl: 'https://auth.openai.com/oauth/authorize?fake=1' } })

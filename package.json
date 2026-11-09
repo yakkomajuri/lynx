@@ -24,13 +24,18 @@
     "e2e": "node scripts/e2e.mjs",
     "test": "node scripts/unit.mjs",
     "dist": "node scripts/dist.mjs",
-    "check": "npm run typecheck && npm test && npm run test:agents && npm run build",
+    "check": "npm run typecheck && npm test && npm run test:agents && npm run test:acp && npm run build",
     "test:agents": "node scripts/agentd.mjs",
     "test:templates": "node scripts/test-templates.mjs",
     "preview:check": "node scripts/preview-checks.mjs",
-    "preview:shot": "node scripts/preview-shot.mjs"
+    "preview:shot": "node scripts/preview-shot.mjs",
+    "test:acp": "node scripts/acp.mjs",
+    "test:acp:live": "node scripts/acp-smoke.mjs"
   },
   "dependencies": {
+    "@agentclientprotocol/claude-agent-acp": "0.101.0",
+    "@agentclientprotocol/codex-acp": "2.5.0",
+    "@agentclientprotocol/sdk": "2.4.0",
     "@anthropic-ai/claude-agent-sdk": "0.3.295",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "cron-parser": "5.10.2",
