@@ -1,6 +1,15 @@
-# Lynx: The open-source AI workspace you can fully customize
+# Lynx: The open source AI workspace you can fully customize
 
-![screen recording 2026 11 04 at 13 22 29](.github/assets/screen-recording-2026-11-04-at-13-22-29.gif)
+
+
+![lynx example animation](.github/assets/screen-recording-2026-11-04-at-13-22-29.gif)
+
+<p align="center">
+  <a href="https://lynx.railcode.dev/docs/humans">Docs for humans</a> - <a href="https://lynx.railcode.dev/docs/agents">Docs for agents</a> - <a href="https://join.slack.com/t/lynxusers/shared_invite/zt-4dpvcz15g-E4lNBBixV_57juSpND3rAg">Community</a> - <a href="https://lynx.railcode.dev/roadmap">Roadmap</a> - <a href="https://lynx.railcode.dev/">Download for macOS</a>
+
+</p>
+
+## About
 
 Lynx is a fully-customizable AI workspace designed to keep you organized and fit your work patterns. 
 
@@ -20,9 +29,32 @@ Lynx solves this by putting interactive interfaces at the center of our interact
 
 ![screen recording 2026 11 04 at 13 23 50](.github/assets/screen-recording-2026-11-04-at-13-23-50.gif)
 
-## Demo
+## Watch demo
 
-https://github.com/user-attachments/assets/69dc02bd-20cc-4af6-ae36-477fc8f3b62f
+https://github.com/user-attachments/assets/246e20b2-1a1c-4563-94e7-08c9f9db1f2f
+
+## Why Lynx?
+
+As of today, Lynx is an experiment about a better way to work with AI. It's so far proven to be very useful to me and some early testers, which is why I'm releasing it publicly, but it remains an experiment. For what it's worth though, I've done over 80% of my daily work from Lynx for a couple weeks now.
+
+There were a few reasons for building it:
+
+1. Interacting with agents through walls of text was getting tiring and inefficient
+2. It was hard to keep track of everything my agents were doing
+3. Harnesses for coding felt like the wrong shape for other types of work
+4. Interactive tools and artifacts proved very useful, but ended up fragmenting work even more
+5. It was hard to stay in the flow jumping through various tools / programs / websites
+
+
+From this, I decided to explore a way of working that was more visual and interactive, while still feeling cohesive rather than fragmented.
+
+A lot of people and companies seem to have come to the conclusion that UIs are still very relevant for humans. Many of us still prefer to click a button that says "Do X" rather than tell an agent "Do X for me". We also like graphs, tables, and colors.
+
+For this reason we've seen artifacts take off, and also MCP-UI starting to become more relevant (basically the little visualizations inside ChatGPT chats).
+
+But these still feel _additive_ to a chat experience, rather than central to our interaction with AI. Most times we're still driving everything from a chat, just using these visual tools as a resource along the way.
+
+So with Lynx, that concept was flipped on its head. Interactive UIs are at the core of the experience, and the chat is there to augment it.
 
 ## To-dos / task tracking example
 
