@@ -2,6 +2,7 @@
 // an effect. This service keeps one warm client per connector (so a UI call is one round trip, not
 // a handshake), runs OAuth when a server asks for it, and mirrors every connector into the engine
 // so agents can be granted the same ones.
+import { providerById } from '../../agentd/providers/registry'
 import { readFileSync, renameSync } from 'node:fs'
 import { rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -467,7 +468,7 @@ export const ConnectorsLive = Layer.effect(Connectors)(
           return { isError: true, content: [{ type: 'text', text: message(e) }] }
         }
       }
-      // Every agent can use every connector, always: sessions are given all of them when they
+      // Agents with connector support receive all connectors when they
       // start, and again before each message so connectors added later are there too. The exception is
       // a session started with the label connectors: none (a security review reading untrusted code),
       // which keeps none, message after message.
@@ -478,16 +479,16 @@ export const ConnectorsLive = Layer.effect(Connectors)(
         await Promise.all(store.connectors.map((s) => syncAgentConnection(s)))
         const all = store.connectors.map((c) => c.agentConnectionId).filter((c): c is string => !!c)
         const client = (await ensure(id)).client
-        if (tool === 'session_start') args = { ...args, connection_ids: (args.labels as Record<string, unknown> | undefined)?.connectors === 'none' ? [] : all }
+        if (tool === 'session_start') args = { ...args, connection_ids: (args.labels as Record<string, unknown> | undefined)?.connectors === 'none' || providerById(String(args.harness))?.capabilities.connections === false ? [] : all }
         else if (typeof args.id === 'string') {
           const got = (await client.callTool({ name: 'session_get', arguments: { id: args.id } }).catch(() => null)) as RawResult | null
-          let info = got?.structuredContent as { session?: { labels?: Record<string, string> } } | undefined
+          let info = got?.structuredContent as { session?: { harness?: string; labels?: Record<string, string> } } | undefined
           try {
             info ??= JSON.parse(got?.content?.[0]?.text ?? 'null') ?? undefined
           } catch {
             /* not JSON: the session keeps every connector */
           }
-          const none = info?.session?.labels?.connectors === 'none'
+          const none = info?.session?.labels?.connectors === 'none' || providerById(info?.session?.harness ?? '')?.capabilities.connections === false
           await client.callTool({ name: 'session_connections_set', arguments: { id: args.id, connection_ids: none ? [] : all } }).catch(() => undefined)
         }
       }

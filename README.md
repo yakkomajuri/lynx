@@ -15,7 +15,7 @@ Lynx is a fully-customizable AI workspace designed to keep you organized and fit
 
 Most of our interactions with AI today happen through walls of text that are tiring to parse through and inefficient for working. Active AI users also quickly find themselves with more threads open than they can manage.
 
-Lynx solves this by putting interactive interfaces at the center of our interaction with agents. Workspaces in Lynx are fully-customizable UIs, connected to the services you use, and able to trigger agents using your local Claude Code or Codex.
+Lynx solves this by putting interactive interfaces at the center of our interaction with agents. Workspaces in Lynx are fully-customizable UIs, connected to the services you use, and able to trigger agents using your local Claude Code, Codex or Pi.
 
 ## Features
 

@@ -2,6 +2,7 @@
 // the tools' schemas and the app read what they need from here, and decide by capability rather
 // than by which agent it is. A new harness is one entry here plus its adapter.
 import { claudeExecutable } from './claude-bin'
+import { piBin } from './pi'
 import { codexBin } from './codex-bin'
 import type { AgentSpec, Ask, BrowserSignIn, Emit, ProviderModel } from './types'
 
@@ -79,27 +80,32 @@ export const PROVIDERS: ProviderDefinition[] = [
   {
     id: 'claude',
     name: 'Claude Code',
-    transport: 'agent-sdk',
+    transport: 'acp',
     capabilities: { resume: true, warm: true, interactive_input: true, connections: true, input, permission_modes },
     resume_command: ['claude', '--resume'],
     login_command: () => [claudeExecutable() ?? 'claude', 'auth', 'login'],
     discover: async () => (await import('./claude-discover')).discoverClaude(),
-    session: async (spec, io) => (await import('./claude')).claudeSession(spec, io.emit, io.signal, io.ask),
+    session: async (spec, io) => (await import('./acp')).acpSession(spec, io),
   },
   {
     id: 'codex',
     name: 'Codex',
-    transport: 'app-server',
-    // Each message starts its own app-server and resumes the thread.
-    capabilities: { resume: true, warm: false, interactive_input: true, connections: true, input, permission_modes },
+    transport: 'acp',
+    capabilities: { resume: true, warm: true, interactive_input: true, connections: true, input, permission_modes },
     resume_command: ['codex', 'resume'],
     login_command: () => [codexBin(), 'login'],
     sign_in: async () => (await import('./codex-login')).codexSignIn(),
     discover: async () => (await import('./codex-discover')).discoverCodex(),
-    session: async (_spec, io) => {
-      const { runCodex } = await import('./codex')
-      return { turn: (s) => runCodex(s, io.emit, io.signal, io.ask), close: () => {} }
-    },
+    session: async (spec, io) => (await import('./acp')).acpSession(spec, io),
+  },
+  {
+    id: 'pi',
+    name: 'Pi',
+    transport: 'acp',
+    capabilities: { resume: true, warm: true, interactive_input: false, connections: false, input: { approvals: false, questions: false, secret_questions: false, arbitrary_dialogs: false, mcp_elicitation: false }, permission_modes: ['deny', 'allow'] },
+    login_command: () => [piBin()],
+    discover: async () => (await import('./pi')).discoverPi(),
+    session: async (spec, io) => (await import('./acp')).acpSession(spec, io),
   },
   {
     id: 'fake',
