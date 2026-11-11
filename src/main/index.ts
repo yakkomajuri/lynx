@@ -15,7 +15,7 @@ import { readRequest } from '@shared/reads'
 import type { ServiceSnapshot } from './runtime'
 import { SCOPE_ALL_SESSIONS, classify, describe } from './consent'
 import { attach } from './background'
-import { fixPath } from './env'
+import { fixPathLater } from './env'
 import { keepLog } from './log'
 import { keepSiteIcons, siteIcon } from './siteIcons'
 import { attachments } from './attachments'
@@ -41,7 +41,6 @@ function preloadPath(name = 'index') {
 }
 
 async function main() {
-  fixPath()
   if (process.env.LYNX_DATA) app.setPath('userData', process.env.LYNX_DATA)
   // A data folder reached through a symlink goes by the folder it points to: that is the name the running
   // service was started with (its --data tag) and the one sessions recorded, and they are compared as text.
@@ -480,6 +479,7 @@ async function main() {
     // Under test the window opens without taking the keyboard from whatever the user is doing, or (E2E_HIDDEN) not at all.
     win.once('ready-to-show', () => {
       closeSplash()
+      void fixPathLater()
       console.error(`[window] shown ${((Date.now() - attaching) / 1000).toFixed(1)}s after connecting began`)
       return process.env.LYNX_E2E === 'hidden' ? undefined : process.env.LYNX_E2E ? win.showInactive() : win.show()
     })
