@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { createInterface } from 'node:readline'
+import { readLines } from '../../shared/jsonLines'
 import { codexBin } from './codex-bin'
 import type { BrowserSignIn } from './types'
 
@@ -34,7 +34,7 @@ export function codexSignIn(): Promise<BrowserSignIn> {
     child.on('error', fail)
     child.stdin.on('error', () => {})
     child.on('exit', () => fail(new Error('Codex stopped before the sign-in finished')))
-    createInterface({ input: child.stdout }).on('line', (line) => {
+    readLines(child.stdout).on('line', (line) => {
       let message: any
       try {
         message = JSON.parse(line)

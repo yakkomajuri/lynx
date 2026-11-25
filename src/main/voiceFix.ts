@@ -3,7 +3,7 @@
 // in a process kept warm between sentences, so a correction costs the model's answer and no start-up.
 // Anything that goes wrong (not signed in, too slow, a strange answer) leaves the words as heard.
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { createInterface } from 'node:readline'
+import { readLines } from '../shared/jsonLines'
 import { tmpdir } from 'node:os'
 import { query, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import { claudeExecutable } from '../agentd/providers/claude-bin'
@@ -101,7 +101,7 @@ function codexFixer(model: string): Fixer {
     }
     c.on('error', gone)
     c.on('exit', () => gone(new Error('Codex stopped')))
-    createInterface({ input: c.stdout }).on('line', (line) => {
+    readLines(c.stdout).on('line', (line) => {
       let m: any
       try {
         m = JSON.parse(line)

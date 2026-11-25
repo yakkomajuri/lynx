@@ -1,5 +1,5 @@
 import { once } from 'node:events'
-import { createInterface } from 'node:readline'
+import { readLines } from '../../shared/jsonLines'
 import type { AgentSpec, Emit } from './types'
 import { providerById, type Session } from './registry'
 import { claudeProviderSettings } from './claude-settings'
@@ -12,7 +12,7 @@ delete process.env.ELECTRON_RUN_AS_NODE
 // The compile cache is on for this process by now; the agent's own Node programs keep theirs.
 delete process.env.NODE_COMPILE_CACHE
 
-const lines = createInterface({ input: process.stdin })
+const lines = readLines(process.stdin)
 const abort = new AbortController()
 process.on('SIGTERM', () => abort.abort())
 let secrets: string[] = []

@@ -258,6 +258,13 @@ try {
   const listed = await call('session_list', { labels: { app: 'test' } })
   check('list filters by label', listed.items.length === 1 && listed.items[0].status === 'completed', listed)
   check('list filter excludes others', (await call('session_list', { labels: { app: 'other' } })).items.length === 0)
+  // Pasted text can carry U+2028/U+2029, which readline treats as line breaks: the spec line must survive them.
+  const pasted = `a@b.org${String.fromCharCode(0x2028)}Pete${String.fromCharCode(0x2029)}end`
+  const separated = await call('session_start', { harness: 'fake', prompt: pasted })
+  const sepFirst = await wait(separated.run.id)
+  check('a message with line or paragraph separators completes', sepFirst.status === 'completed' && sepFirst.output === `Reply: ${pasted}`, sepFirst)
+  const sepSecond = await wait((await call('session_send', { id: separated.session.id, prompt: pasted })).id)
+  check('and so does one sent to its warm worker', sepSecond.status === 'completed' && sepSecond.output === `Reply: ${pasted}`, sepSecond)
   check('busy session refuses a second message', (await fails(async () => {
     const r = await call('session_send', { id: started.session.id, prompt: 'slow one' })
     await call('session_send', { id: started.session.id, prompt: 'too soon' }).finally(() => wait(r.id))
