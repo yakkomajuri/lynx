@@ -1,5 +1,5 @@
 import { execFile, spawn } from 'node:child_process'
-import { createInterface } from 'node:readline'
+import { readLines } from '../../shared/jsonLines'
 import { promisify } from 'node:util'
 import { codexBin } from './codex-bin'
 import type { ProviderModel } from './types'
@@ -21,7 +21,7 @@ async function listCodexModels(): Promise<ProviderModel[]> {
     const timer = setTimeout(() => finish([]), 8000)
     child.on('error', () => finish([]))
     child.stdin.on('error', () => {})
-    createInterface({ input: child.stdout }).on('line', (line) => {
+    readLines(child.stdout).on('line', (line) => {
       try {
         const message = JSON.parse(line)
         if (message.id === 1)

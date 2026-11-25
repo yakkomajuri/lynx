@@ -6,6 +6,7 @@ import { claudeProviderSettings } from './providers/claude-settings'
 import { envSecrets, headerSecrets, redactCut, redactKnown } from './providers/redact'
 import type { AgentEvent, AgentSpec, InputRequest } from './providers/types'
 import type { Run, Store } from './store'
+import { jsonLine } from '../shared/jsonLines'
 
 export interface RunnerOptions {
   /** A Node binary for the worker (Electron's own, in Node mode, inside the app). */
@@ -280,7 +281,7 @@ export function createRunner(store: Store, opts: RunnerOptions) {
       if (w.child.pid) store.launched(run.id, w.child.pid, reused)
       if (store.getRun(run.id).cancel_requested) stopWorker(w, 'cancel')
       const line = reused ? { type: 'turn', spec } : { ...spec, warm: w.warm }
-      w.child.stdin!.write(JSON.stringify(line) + '\n')
+      w.child.stdin!.write(jsonLine(line))
       const ended = await Promise.race([turnDone, w.exited])
       if (ended === 'turn') w.flushStderr()
       const result: Exit | { warm: true; pid?: number } = ended === 'turn' ? { warm: true, pid: w.child.pid } : ended

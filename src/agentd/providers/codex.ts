@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { createInterface } from 'node:readline'
+import { readLines } from '../../shared/jsonLines'
 import { mcpName, type AgentSpec, type Emit, type Ask } from './types'
 import { codexBin } from './codex-bin'
 import { failure, type Failure, type FailureClass, type ToolInvocation, type ToolResult } from './events'
@@ -57,7 +57,7 @@ export async function runCodex(spec: AgentSpec, emit: Emit, signal: AbortSignal,
   child.on('exit', (code) => {
     if (!completed) fail(new Error(`Codex app-server exited before completion (${code})`))
   })
-  const lines = createInterface({ input: child.stdout })
+  const lines = readLines(child.stdout)
   let queue = Promise.resolve()
   let partial = ''
   let flushedAt = 0

@@ -3,7 +3,7 @@
 // conversation that is never sent a message; Codex answers `account/rateLimits/read` from its
 // app-server. Neither costs any usage. Answers are kept a minute, so moving about Settings does not ask again.
 import { spawn } from 'node:child_process'
-import { createInterface } from 'node:readline'
+import { readLines } from '../shared/jsonLines'
 import { tmpdir } from 'node:os'
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import { claudeExecutable } from '../agentd/providers/claude-bin'
@@ -67,7 +67,7 @@ export function codexUsage(): Promise<ProviderUsage> {
     child.on('error', (e: NodeJS.ErrnoException) => finish(e.code === 'ENOENT' ? { ...base, status: 'missing', detail: 'Codex is not installed.' } : { ...base, status: 'error', detail: e.message }))
     child.on('exit', () => finish({ ...base, status: 'error', detail: 'Codex stopped before it answered' }))
     child.stdin.on('error', () => {})
-    createInterface({ input: child.stdout }).on('line', (line) => {
+    readLines(child.stdout).on('line', (line) => {
       let m: any
       try {
         m = JSON.parse(line)

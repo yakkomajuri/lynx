@@ -7,6 +7,7 @@ import { basename, isAbsolute, join, resolve, sep } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import { json, now, parse, transaction } from './db'
 import type { AgentSpec, InputRequest, InputResponse } from './providers/types'
+import { jsonLine } from '../shared/jsonLines'
 
 export class AppError extends Error {
   constructor(
@@ -340,7 +341,7 @@ export function createStore(db: DatabaseSync, opts: StoreOptions) {
         return request
       }
       const run = getRun(request.execution_id)
-      if (run.cancel_requested || !['waiting_for_input', 'running'].includes(run.status) || !deliver(run.id, JSON.stringify({ type: 'input_response', id, response }) + '\n'))
+      if (run.cancel_requested || !['waiting_for_input', 'running'].includes(run.status) || !deliver(run.id, jsonLine({ type: 'input_response', id, response })))
         throw problem('stale_input', 'The owning provider is no longer available; response was not queued', 409)
       q("UPDATE inputs SET response = ?, status = 'response_queued', responded_at = ? WHERE id = ?").run(json(response), now(), id)
       appendEvent(run.session_id, run.id, 'input_response_queued', { id, response })
