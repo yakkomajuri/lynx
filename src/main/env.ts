@@ -1,6 +1,6 @@
 // The process environment both halves of the app need: the window, and the background service that
 // may be started at login with next to nothing in its environment.
-import { execFile, execFileSync } from 'node:child_process'
+import { execFile, execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process'
 
 // What tells Claude Code to use a cloud provider instead of an Anthropic sign-in, and that provider's
 // region, profile and credentials. People on Bedrock or Vertex often export these from their shell
@@ -19,20 +19,41 @@ export function providerEnv(listing: string, have: NodeJS.ProcessEnv = process.e
   return found
 }
 
+// Markers around PATH, since a profile may print to the terminal first.
+const SHELL_ARGS = ['-ilc', `printf '${MARK}%s${MARK}' "$PATH"; env`]
+const SHELL_OPTS: ExecFileSyncOptionsWithStringEncoding = { timeout: 4000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
+
 // GUI apps (and launchd) do not inherit the shell environment: node, claude, codex and local MCP
 // servers live on its PATH, and Claude Code may be set up there to use Bedrock or Vertex.
 export function fixPath() {
-  const extra = [`${process.env.HOME}/.local/bin`, '/opt/homebrew/bin', '/usr/local/bin', `${process.env.HOME}/.local/share/mise/shims`]
-  let shellPath = ''
+  let out = ''
   try {
-    // Markers around PATH, since a profile may print to the terminal first.
-    const out = execFileSync(process.env.SHELL || '/bin/zsh', ['-ilc', `printf '${MARK}%s${MARK}' "$PATH"; env`], { timeout: 4000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
-    const [, path = '', listing = ''] = out.split(MARK)
-    shellPath = path
-    Object.assign(process.env, providerEnv(listing))
+    out = execFileSync(process.env.SHELL || '/bin/zsh', SHELL_ARGS, SHELL_OPTS)
   } catch {
     /* defaults below */
   }
+  applyShell(out)
+}
+
+// fixPath without blocking. A login shell can take seconds, so the window shows first and runs this
+// after: nothing it starts needs the shell's PATH until the user asks for it.
+let later: Promise<void> | undefined
+export function fixPathLater() {
+  // Once per app, however many windows open.
+  if (later) return later
+  later = new Promise((resolve) => {
+    execFile(process.env.SHELL || '/bin/zsh', SHELL_ARGS, SHELL_OPTS, (error, out) => {
+      applyShell(error ? '' : out)
+      resolve()
+    })
+  })
+  return later
+}
+
+function applyShell(out: string) {
+  const extra = [`${process.env.HOME}/.local/bin`, '/opt/homebrew/bin', '/usr/local/bin', `${process.env.HOME}/.local/share/mise/shims`]
+  const [, shellPath = '', listing = ''] = out.split(MARK)
+  Object.assign(process.env, providerEnv(listing))
   process.env.PATH = [...new Set([...shellPath.split(':'), ...(process.env.PATH ?? '').split(':'), ...extra].filter(Boolean))].join(':')
   // Nor a locale when opened from Finder; the agents' tools expect one.
   if (!process.env.LANG && !process.env.LC_ALL) process.env.LANG = 'en_US.UTF-8'
